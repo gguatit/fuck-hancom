@@ -1,5 +1,4 @@
-import { AiClient } from '@/ai/client';
-import type { AiSettings, ProviderInfo } from '@/ai/types';
+import type { AiSettings } from '@/ai/types';
 
 const HARDCODED_MODELS: Record<string, Array<{ id: string; name: string }>> = {
   opencode: [
@@ -45,7 +44,7 @@ export class AiSettingsDialog {
   private dialog: HTMLElement;
   private resolve: ((settings: AiSettings | null) => void) | null = null;
 
-  constructor(private client: AiClient) {
+  constructor() {
     this.overlay = document.createElement('div');
     this.overlay.className = 'modal-overlay';
     this.overlay.style.display = 'none';
@@ -90,7 +89,7 @@ export class AiSettingsDialog {
 
     const desc = document.createElement('p');
     desc.className = 'aic-desc';
-    desc.textContent = 'open code Go ($10/월) 또는 Zen (종량제) API 키를 입력하고 모델을 선택하세요.';
+    desc.textContent = 'open code Go ($10/월) 또는 Zen (종량제) API 키를 입력하고 모델을 선택하세요. API 키는 opencode.ai/auth에서 발급받을 수 있습니다.';
     body.appendChild(desc);
 
     const providerRow = document.createElement('div');
@@ -137,7 +136,7 @@ export class AiSettingsDialog {
 
     const modelSelect = document.createElement('select');
     modelSelect.className = 'aic-select';
-    modelSelect.innerHTML = '<option value="">먼저 API 키 입력 후 모델 로드를 누르세요</option>';
+    modelSelect.innerHTML = '<option value="">제공자와 API 키 입력 후 모델 로드를 누르세요</option>';
     modelRow.appendChild(modelSelect);
 
     const loadModelsBtn = document.createElement('button');
@@ -176,20 +175,28 @@ export class AiSettingsDialog {
       }
 
       const provider = providerSelect.value as 'go' | 'zen';
-      statusEl.textContent = '인증 및 모델 로딩 중...';
+      statusEl.textContent = 'API 확인 및 모델 로딩 중...';
       statusEl.className = 'aic-status aic-status-loading';
 
       try {
-        const providerId = provider === 'go' ? 'opencode-go' : 'opencode';
-        await this.client.setAuth(providerId, apiKey);
+        const baseUrl = provider === 'go'
+          ? 'https://opencode.ai/zen/go/v1'
+          : 'https://opencode.ai/zen/v1';
 
-        // Try dynamic model fetch first
+        // Try to fetch models dynamically from the API
         let models: Array<{ id: string; name: string }> = [];
         try {
-          const configProviders = await this.client.getConfigProviders();
-          const target = configProviders.find((p: ProviderInfo) => p.id === providerId);
-          if (target && target.models.length > 0) {
-            models = target.models;
+          const res = await fetch(`${baseUrl}/models`, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.data)) {
+              models = data.data.map((m: Record<string, unknown>) => ({
+                id: String(m.id ?? ''),
+                name: String(m.id ?? ''),
+              }));
+            }
           }
         } catch {
           // fallback to hardcoded
@@ -197,6 +204,7 @@ export class AiSettingsDialog {
 
         // Fallback to hardcoded models
         if (models.length === 0) {
+          const providerId = provider === 'go' ? 'opencode-go' : 'opencode';
           models = HARDCODED_MODELS[providerId] ?? [];
         }
 
@@ -214,7 +222,7 @@ export class AiSettingsDialog {
           modelSelect.appendChild(opt);
         }
 
-        statusEl.textContent = `${models.length}개 모델 로드 완료`;
+        statusEl.textContent = `✅ ${models.length}개 모델 로드 완료`;
         statusEl.className = 'aic-status aic-status-ok';
       } catch (err) {
         statusEl.textContent = `실패: ${err instanceof Error ? err.message : String(err)}`;

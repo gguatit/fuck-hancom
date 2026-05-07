@@ -1,6 +1,5 @@
 import { AiService } from '@/ai/service';
 import type { ChatMessage } from '@/ai/types';
-import { AiClient } from '@/ai/client';
 import { AiSettingsDialog } from './ai-settings-dialog';
 import type { WasmBridge } from '@/core/wasm-bridge';
 import type { EventBus } from '@/core/event-bus';
@@ -26,7 +25,7 @@ export class AiChatPanel {
     this.wasm = wasm;
     this.eventBus = eventBus;
     this.service = new AiService(wasm, eventBus);
-    this.settingsDialog = new AiSettingsDialog(new AiClient());
+    this.settingsDialog = new AiSettingsDialog();
 
     this.toggleBtn = document.createElement('button');
     this.toggleBtn.className = 'aic-toggle-btn';
