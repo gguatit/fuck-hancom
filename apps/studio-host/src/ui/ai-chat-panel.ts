@@ -177,9 +177,10 @@ export class AiChatPanel {
     this.inputEl.value = '';
     this.loading = true;
     this.sendBtn.disabled = true;
-    this.sendBtn.textContent = '처리 중...';
+    this.sendBtn.textContent = '⏳ 대기 중...';
 
     this.addMessage({ role: 'user', content: text, timestamp: Date.now() });
+    const loadingEl = this.addLoadingIndicator();
 
     try {
       const responses = await this.service.sendMessage(text);
@@ -195,9 +196,32 @@ export class AiChatPanel {
         timestamp: Date.now(),
       });
     } finally {
+      this.removeLoadingIndicator();
       this.loading = false;
       this.sendBtn.textContent = '전송';
       this.updateSendButton();
+    }
+  }
+
+  private loadingEl: HTMLElement | null = null;
+
+  private addLoadingIndicator(): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'aic-message aic-msg-loading';
+    const content = document.createElement('div');
+    content.className = 'aic-msg-content';
+    content.innerHTML = '<span class="aic-spinner"></span> AI가 생각 중...';
+    el.appendChild(content);
+    this.messagesEl.appendChild(el);
+    this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    this.loadingEl = el;
+    return el;
+  }
+
+  private removeLoadingIndicator(): void {
+    if (this.loadingEl) {
+      this.loadingEl.remove();
+      this.loadingEl = null;
     }
   }
 

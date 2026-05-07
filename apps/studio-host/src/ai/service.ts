@@ -193,7 +193,11 @@ export class AiService {
 
         if (modified) {
           this.eventBus.emit('document-changed');
+          // Yield to event loop so UI can update
+          await new Promise((r) => setTimeout(r, 0));
         }
+        // Yield between rounds to prevent UI freeze
+        await new Promise((r) => setTimeout(r, 0));
         continue;
       }
 
