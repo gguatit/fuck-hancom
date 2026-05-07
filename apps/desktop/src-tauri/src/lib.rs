@@ -3,7 +3,6 @@ mod commands;
 mod font_catalog;
 #[cfg(target_os = "linux")]
 mod linux_runtime;
-#[cfg(target_os = "macos")]
 mod menu;
 mod pdf_export;
 mod pdf_font_fallbacks;
@@ -99,7 +98,7 @@ pub fn run() {
             restart_to_apply_update,
         ])
         .build(tauri::generate_context!())
-        .expect("failed to build HOP desktop app");
+        .expect("failed to build Fuck Hancom desktop app");
 
     app.run(|_app, _event| {
         #[cfg(target_os = "macos")]

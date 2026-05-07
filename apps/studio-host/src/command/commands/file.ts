@@ -97,7 +97,9 @@ const desktopCommands = new Map<string, CommandDef>([
     }
   })],
   ['file:about', {
-    ...upstream('file:about'),
+    id: 'file:about',
+    label: '제품 정보',
+    icon: 'icon-help',
     execute() {
       new AboutDialog().show();
     },
@@ -145,7 +147,7 @@ const hopOnlyCommands: CommandDef[] = [
     async execute(services) {
       const desktop = desktopBridge(services.wasm);
       if (!desktop) {
-        alert('PDF 내보내기는 HOP 데스크톱 앱에서 지원합니다.');
+        alert('PDF 내보내기는 Fuck Hancom 데스크톱 앱에서 지원합니다.');
         return;
       }
 
