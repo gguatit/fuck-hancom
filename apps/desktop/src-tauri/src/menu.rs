@@ -62,6 +62,7 @@ pub fn install(app: &mut App) -> tauri::Result<()> {
     let fit_page = MenuItemBuilder::with_id("view:zoom-fit-page", "Fit Page").build(app)?;
     let fit_width = MenuItemBuilder::with_id("view:zoom-fit-width", "Fit Width").build(app)?;
 
+    #[cfg(target_os = "macos")]
     let app_menu = SubmenuBuilder::new(app, "HOP")
         .item(&app_about)
         .separator()
@@ -73,6 +74,11 @@ pub fn install(app: &mut App) -> tauri::Result<()> {
         .separator()
         .item(&app_quit)
         .build()?;
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = &app_about;
+        let _ = &app_quit;
+    }
     let file_menu = SubmenuBuilder::new(app, "File")
         .item(&new_doc)
         .item(&new_window)
@@ -83,6 +89,9 @@ pub fn install(app: &mut App) -> tauri::Result<()> {
         .separator()
         .item(&export_pdf)
         .item(&print)
+        .separator()
+        .item(&app_about)
+        .item(&app_quit)
         .build()?;
     let edit_menu = SubmenuBuilder::new(app, "Edit")
         .item(&undo)
@@ -113,10 +122,22 @@ pub fn install(app: &mut App) -> tauri::Result<()> {
         .close_window()
         .build()?;
 
+    #[cfg(target_os = "macos")]
     let menu = Menu::with_items(
         app,
         &[
             &app_menu,
+            &file_menu,
+            &edit_menu,
+            &table_menu,
+            &view_menu,
+            &window_menu,
+        ],
+    )?;
+    #[cfg(not(target_os = "macos"))]
+    let menu = Menu::with_items(
+        app,
+        &[
             &file_menu,
             &edit_menu,
             &table_menu,

@@ -59,10 +59,7 @@ pub fn run() {
             }
         }))
         .setup(|app| {
-            #[cfg(target_os = "macos")]
             menu::install(app)?;
-            #[cfg(not(target_os = "macos"))]
-            app.set_menu(tauri::menu::Menu::new(app)?)?;
             #[cfg(not(target_os = "macos"))]
             queue_open_paths(app.handle(), startup_document_paths());
             if let Some(window) = app.get_webview_window("main") {

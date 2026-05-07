@@ -2,6 +2,8 @@ import { fileCommands as upstreamFileCommands } from '@upstream/command/commands
 import type { CommandDef, CommandServices } from '@/command/types';
 import type { DesktopBridgeApi } from '@/core/tauri-bridge';
 import { openPrintDialog } from '@/ui/print-dialog';
+import { AboutDialog as UpstreamAboutDialog } from '@upstream/ui/about-dialog';
+import { AboutDialog } from '@/ui/about-dialog';
 
 type DesktopFileBridge = Pick<
   DesktopBridgeApi,
@@ -94,6 +96,12 @@ const desktopCommands = new Map<string, CommandDef>([
       alert(`인쇄에 실패했습니다:\n${message}`);
     }
   })],
+  ['file:about', {
+    ...upstream('file:about'),
+    execute() {
+      new AboutDialog().show();
+    },
+  }],
 ]);
 
 const hopOnlyCommands: CommandDef[] = [

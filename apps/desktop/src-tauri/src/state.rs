@@ -98,6 +98,8 @@ pub struct DocumentSession {
     pub page_svg_cache: HashMap<u32, (u64, String)>,
 }
 
+const MAX_SVG_CACHE_SIZE: usize = 100;
+
 #[derive(Default)]
 pub struct DocumentSessionManager {
     sessions: HashMap<String, DocumentSession>,
@@ -259,6 +261,13 @@ impl DocumentSessionManager {
         session
             .page_svg_cache
             .insert(page_index, (session.revision, svg.clone()));
+        while session.page_svg_cache.len() > MAX_SVG_CACHE_SIZE {
+            if let Some(&oldest) = session.page_svg_cache.keys().next() {
+                session.page_svg_cache.remove(&oldest);
+            } else {
+                break;
+            }
+        }
         Ok(PageSvgResult {
             doc_id: session.doc_id.clone(),
             page_index,
@@ -457,7 +466,7 @@ impl DocumentSession {
             self.page_count = core.page_count();
             self.core = Some(core);
         }
-        Ok(self.core.as_mut().expect("core must be loaded"))
+        Ok(self.core.as_mut().ok_or_else(|| "core must be loaded".to_string())?)
     }
 
     fn check_revision(&self, expected_revision: Option<u64>) -> Result<(), String> {

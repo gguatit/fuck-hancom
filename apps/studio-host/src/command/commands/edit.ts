@@ -24,7 +24,7 @@ const hopEditCommandById = new Map<string, CommandDef>([
     id: 'edit:delete',
     label: '지우기',
     icon: 'icon-delete',
-    shortcutLabel: 'Ctrl+E',
+    shortcutLabel: 'Delete',
     canExecute: (ctx) => ctx.hasDocument,
     execute(services) {
       (services.getInputHandler() as DeleteCapableInputHandler | null)?.performDelete?.();
