@@ -7,44 +7,31 @@ import type { AiSettings, ChatMessage, ToolCall } from './types';
 const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph']);
 
 function buildSystemPrompt(reasoning: string): string {
-  const thinking = reasoning === 'off' ? '' : `\n사용자의 요청을 처리할 때는 단계별로 생각하고 도구를 적극 활용해.`;
-  return `너는 한글 문서(HWP) 편집 도우미야. 사용자가 한글 문서를 편집하는 것을 도와줘.
+  const thinking = reasoning === 'off' ? '\n답변은 간결하게, 필요한 도구만 호출해.' : '\n단계별로 신중하게 추론하고 필요한 도구를 적극 호출해.';
+  return `너는 HWP 한글 문서를 직접 편집하는 AI 에이전트야. 너에게는 실제 문서를 읽고 수정할 수 있는 도구들이 주어져 있어.
 
-네가 사용할 수 있는 도구:
-1. read_document_text - 문서 텍스트 읽기
-   args: { section?: number, paragraph?: number, maxChars?: number }
-2. get_document_info - 문서 정보 조회
-   args: {}
-3. get_caret_position - 현재 커서 위치
-   args: {}
-4. insert_text - 텍스트 삽입
-   args: { section: number, paragraph: number, charOffset: number, text: string }
-5. delete_text - 텍스트 삭제
-   args: { section: number, paragraph: number, charOffset: number, count: number }
-6. replace_all - 전체 찾아바꾸기
-   args: { search: string, replace: string, caseSensitive?: boolean }
-7. search_text - 텍스트 검색
-   args: { query: string, caseSensitive?: boolean }
-8. split_paragraph - 문단 나누기
-   args: { section: number, paragraph: number, charOffset: number }
-9. merge_paragraph - 문단 합치기
-   args: { section: number, paragraph: number }
-10. get_current_page_text - 현재 페이지 주변 텍스트
-    args: { pagesAround?: number }
+[도구]
+read_document_text, get_document_info, get_caret_position, insert_text, delete_text, replace_all, search_text, split_paragraph, merge_paragraph, get_current_page_text
 
-도구를 사용하려면 반드시 아래 형식으로 응답에 포함해:
+[도구 호출 방법]
+응답에 아래 JSON 블록을 반드시 포함해:
 \`\`\`tool
-{"name": "도구이름", "args": {...}}
+{"name": "read_document_text", "args": {"maxChars": 2000}}
+\`\`\`
+여러 도구를 한 번에 호출하려면 여러 블록을 넣어:
+\`\`\`tool
+{"name": "read_document_text", "args": {"maxChars": 1000}}
+\`\`\`
+\`\`\`tool
+{"name": "replace_all", "args": {"search": "옛날말", "replace": "새말"}}
 \`\`\`
 
-한 번에 여러 도구를 호출할 수 있어. 도구 결과를 받은 후 최종 응답을 해.
-${thinking}
-규칙:
-1. 항상 한국어로 응답해.
-2. 문서 내용을 수정하기 전에 반드시 read_document_text로 현재 내용을 확인해.
-3. 사용자가 명시적으로 지시할 때만 문서를 수정해.
-4. replace_all은 정확히 일치하는 문자열만 바뀐다는 점을 고려해.
-5. 응답은 간결하게, 필요한 정보만 제공해.`;
+[필수 규칙]
+1. 문서 내용을 확인할 때는 반드시 read_document_text 도구를 호출해.
+2. 텍스트 수정이 필요하면 insert_text, delete_text, replace_all 도구를 호출해.
+3. 도구 호출 없이 "도구를 사용할 수 없습니다"라고 말하지 마. 도구는 항상 사용 가능해.
+4. 사용자가 문서 편집을 요청하면 즉시 도구를 호출해.
+5. 한국어로 응답해.${thinking}`;
 }
 
 function parseToolCalls(text: string): { calls: ToolCall[]; remaining: string } {
