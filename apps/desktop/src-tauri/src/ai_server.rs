@@ -7,29 +7,23 @@ pub struct AiServer {
 }
 
 fn find_opencode() -> Option<PathBuf> {
-    // 1. Try global PATH
     if let Ok(path) = which::which("opencode") {
         return Some(path);
     }
-    // 2. Try npm global prefix
     if let Ok(output) = Command::new("npm").args(["prefix", "-g"]).output() {
         let prefix = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let candidate = PathBuf::from(&prefix).join("opencode.cmd");
-        if candidate.exists() {
-            return Some(candidate);
-        }
-        let candidate = PathBuf::from(&prefix).join("opencode");
-        if candidate.exists() {
-            return Some(candidate);
-        }
-    }
-    // 3. Try common npm global locations on Windows
-    if cfg!(windows) {
-        if let Ok(appdata) = std::env::var("APPDATA") {
-            let candidate = PathBuf::from(&appdata).join("npm").join("opencode.cmd");
+        for name in &["opencode.cmd", "opencode"] {
+            let candidate = PathBuf::from(&prefix).join(name);
             if candidate.exists() {
                 return Some(candidate);
             }
+        }
+    }
+    #[cfg(windows)]
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let candidate = PathBuf::from(&appdata).join("npm").join("opencode.cmd");
+        if candidate.exists() {
+            return Some(candidate);
         }
     }
     None
@@ -41,18 +35,25 @@ impl AiServer {
             "opencode를 찾을 수 없습니다. opencode가 설치되어 있고 PATH에 등록되어 있는지 확인하세요.".to_string()
         })?;
 
-        let child = Command::new(&opencode_path)
-            .args(["serve", "--port", "4096"])
+        let mut cmd = Command::new(&opencode_path);
+        cmd.args(["serve", "--port", "4096"])
             .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .map_err(|e| {
-                format!(
-                    "opencode 서버 시작 실패 ({}): {}",
-                    opencode_path.display(),
-                    e
-                )
-            })?;
+            .stderr(std::process::Stdio::null());
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        let child = cmd.spawn().map_err(|e| {
+            format!(
+                "opencode 서버 시작 실패 ({}): {}",
+                opencode_path.display(),
+                e
+            )
+        })?;
 
         Ok(AiServer {
             child: Some(child),

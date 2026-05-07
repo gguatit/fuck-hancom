@@ -5,185 +5,167 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
   return [
     {
       name: 'read_document_text',
-      description:
-        '문서의 특정 섹션/문단의 텍스트를 읽습니다. section과 paragraph를 생략하면 문서 전체 텍스트를 읽습니다. maxChars로 최대 글자 수를 제한할 수 있습니다.',
+      description: '문서 텍스트 읽기. section/paragraph 생략 시 전체. maxChars 제한 가능.',
       parameters: {
         type: 'object',
         properties: {
-          section: {
-            type: 'integer',
-            description: '섹션 인덱스 (0부터 시작). 생략 시 모든 섹션을 순회합니다.',
-          },
-          paragraph: {
-            type: 'integer',
-            description: '문단 인덱스 (0부터 시작). section과 함께 지정 시 해당 문단만 읽습니다.',
-          },
-          maxChars: {
-            type: 'integer',
-            description: '최대 글자 수 제한. 기본값 5000.',
-          },
+          section: { type: 'integer', description: '섹션 인덱스 (0부터)' },
+          paragraph: { type: 'integer', description: '문단 인덱스 (0부터)' },
+          maxChars: { type: 'integer', description: '최대 글자 수. 기본 8000.' },
         },
       },
     },
     {
       name: 'get_document_info',
-      description: '문서 정보를 조회합니다: 페이지 수, 섹션 수, 각 섹션별 문단 수, 현재 파일명 등.',
-      parameters: {
-        type: 'object',
-        properties: {},
-      },
+      description: '문서 기본 정보: 페이지 수, 섹션 수, 문단 수, 파일명.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_document_structure',
+      description: '전체 문서 구조: 표/그림/각주/머리말/필드/책갈피 개수와 요약.',
+      parameters: { type: 'object', properties: {} },
     },
     {
       name: 'get_caret_position',
-      description: '현재 커서 위치를 반환합니다 (섹션, 문단, 글자 오프셋).',
-      parameters: {
-        type: 'object',
-        properties: {},
-      },
+      description: '현재 커서 위치 (섹션, 문단, 오프셋).',
+      parameters: { type: 'object', properties: {} },
     },
     {
-      name: 'insert_text',
-      description: '지정된 위치에 텍스트를 삽입합니다.',
+      name: 'get_current_page_text',
+      description: '문서 텍스트 최대 4000자까지 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_table_content',
+      description: '문서의 모든 표 구조(행/열)와 셀 텍스트 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_header_footer',
+      description: '문서의 모든 머리말/꼬리말 내용 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_footnotes',
+      description: '문서의 모든 각주 번호와 텍스트 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_char_format',
+      description: '특정 위치 글자 서식(폰트, 크기, 굵기, 색상 등) 읽기.',
       parameters: {
         type: 'object',
         properties: {
-          section: {
-            type: 'integer',
-            description: '섹션 인덱스 (0부터 시작)',
-          },
-          paragraph: {
-            type: 'integer',
-            description: '문단 인덱스 (0부터 시작)',
-          },
-          charOffset: {
-            type: 'integer',
-            description: '글자 오프셋 (0부터 시작)',
-          },
-          text: {
-            type: 'string',
-            description: '삽입할 텍스트',
-          },
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          charOffset: { type: 'integer' },
+        },
+        required: ['section', 'paragraph', 'charOffset'],
+      },
+    },
+    {
+      name: 'get_para_format',
+      description: '특정 문단 서식(정렬, 줄간격, 여백 등) 읽기.',
+      parameters: {
+        type: 'object',
+        properties: { section: { type: 'integer' }, paragraph: { type: 'integer' } },
+        required: ['section', 'paragraph'],
+      },
+    },
+    {
+      name: 'get_style_at',
+      description: '특정 문단의 스타일 정보 읽기.',
+      parameters: {
+        type: 'object',
+        properties: { section: { type: 'integer' }, paragraph: { type: 'integer' } },
+        required: ['section', 'paragraph'],
+      },
+    },
+    {
+      name: 'get_picture_shapes',
+      description: '문서의 모든 그림/도형/개체 종류와 위치 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_fields',
+      description: '문서의 모든 필드/누름틀 목록과 값 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'get_bookmarks',
+      description: '문서의 모든 책갈피 목록 읽기.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'insert_text',
+      description: '지정 위치에 텍스트 삽입.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          charOffset: { type: 'integer' },
+          text: { type: 'string', description: '삽입할 텍스트' },
         },
         required: ['section', 'paragraph', 'charOffset', 'text'],
       },
     },
     {
       name: 'delete_text',
-      description: '지정된 위치의 텍스트를 삭제합니다.',
+      description: '지정 위치 텍스트 삭제.',
       parameters: {
         type: 'object',
         properties: {
-          section: {
-            type: 'integer',
-            description: '섹션 인덱스 (0부터 시작)',
-          },
-          paragraph: {
-            type: 'integer',
-            description: '문단 인덱스 (0부터 시작)',
-          },
-          charOffset: {
-            type: 'integer',
-            description: '삭제 시작 글자 오프셋',
-          },
-          count: {
-            type: 'integer',
-            description: '삭제할 글자 수',
-          },
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          charOffset: { type: 'integer' },
+          count: { type: 'integer' },
         },
         required: ['section', 'paragraph', 'charOffset', 'count'],
       },
     },
     {
       name: 'replace_all',
-      description: '문서 전체에서 특정 문자열을 찾아 다른 문자열로 모두 바꿉니다. 대소문자 구분 옵션을 지정할 수 있습니다.',
+      description: '문서 전체 찾아바꾸기.',
       parameters: {
         type: 'object',
         properties: {
-          search: {
-            type: 'string',
-            description: '찾을 문자열',
-          },
-          replace: {
-            type: 'string',
-            description: '바꿀 문자열',
-          },
-          caseSensitive: {
-            type: 'boolean',
-            description: '대소문자 구분 여부. 기본값 false.',
-          },
+          search: { type: 'string' },
+          replace: { type: 'string' },
+          caseSensitive: { type: 'boolean' },
         },
         required: ['search', 'replace'],
       },
     },
     {
       name: 'search_text',
-      description: '문서에서 특정 텍스트를 검색합니다.',
+      description: '텍스트 검색.',
       parameters: {
         type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: '검색할 문자열',
-          },
-          caseSensitive: {
-            type: 'boolean',
-            description: '대소문자 구분 여부. 기본값 false.',
-          },
-        },
+        properties: { query: { type: 'string' }, caseSensitive: { type: 'boolean' } },
         required: ['query'],
       },
     },
     {
       name: 'split_paragraph',
-      description: '지정된 위치에서 문단을 나눕니다.',
+      description: '문단 나누기.',
       parameters: {
         type: 'object',
         properties: {
-          section: {
-            type: 'integer',
-            description: '섹션 인덱스 (0부터 시작)',
-          },
-          paragraph: {
-            type: 'integer',
-            description: '문단 인덱스 (0부터 시작)',
-          },
-          charOffset: {
-            type: 'integer',
-            description: '나눌 글자 오프셋',
-          },
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          charOffset: { type: 'integer' },
         },
         required: ['section', 'paragraph', 'charOffset'],
       },
     },
     {
       name: 'merge_paragraph',
-      description: '지정된 문단을 다음 문단과 합칩니다.',
+      description: '문단 합치기.',
       parameters: {
         type: 'object',
-        properties: {
-          section: {
-            type: 'integer',
-            description: '섹션 인덱스 (0부터 시작)',
-          },
-          paragraph: {
-            type: 'integer',
-            description: '합칠 문단 인덱스 (0부터 시작)',
-          },
-        },
+        properties: { section: { type: 'integer' }, paragraph: { type: 'integer' } },
         required: ['section', 'paragraph'],
-      },
-    },
-    {
-      name: 'get_current_page_text',
-      description: '현재 표시 중인 페이지 주변의 텍스트를 읽습니다. 현재 페이지 기준으로 앞뒤 N페이지의 텍스트를 가져옵니다. 문서의 문맥을 파악할 때 사용합니다.',
-      parameters: {
-        type: 'object',
-        properties: {
-          pagesAround: {
-            type: 'integer',
-            description: '현재 페이지 기준 앞뒤로 가져올 페이지 수. 기본값 2.',
-          },
-        },
       },
     },
   ];
@@ -194,155 +176,388 @@ export function executeHwpTool(
   args: Record<string, unknown>,
   wasm: WasmBridge,
 ): string {
+  // Shared helpers
+  function readAllText(maxChars: number): string {
+    let result = '';
+    let sections = 1;
+    try { sections = wasm.getParagraphCount(-1); } catch { /* */ }
+    for (let s = 0; s < sections && result.length < maxChars; s++) {
+      let pc = 0;
+      try { pc = wasm.getParagraphCount(s); } catch { break; }
+      for (let p = 0; p < pc && result.length < maxChars; p++) {
+        const len = wasm.getParagraphLength(s, p);
+        if (len > 0) {
+          result += wasm.getTextRange(s, p, 0, Math.min(len, maxChars - result.length));
+          if (p < pc - 1) result += '\n';
+        }
+      }
+      if (s < sections - 1) result += '\n---\n';
+    }
+    if (result.length >= maxChars) result += '\n...(잘림)';
+    return result;
+  }
+
   switch (toolName) {
     case 'read_document_text': {
-      const maxChars = (args.maxChars as number) ?? 5000;
-      const targetSec = args.section as number | undefined;
-      const targetPara = args.paragraph as number | undefined;
-
-      if (targetSec !== undefined && targetPara !== undefined) {
-        const len = wasm.getParagraphLength(targetSec, targetPara);
-        const limitedLen = Math.min(len, maxChars);
-        return wasm.getTextRange(targetSec, targetPara, 0, limitedLen);
+      const maxChars = (args.maxChars as number) ?? 8000;
+      const ts = args.section as number | undefined;
+      const tp = args.paragraph as number | undefined;
+      if (ts !== undefined && tp !== undefined) {
+        const len = wasm.getParagraphLength(ts, tp);
+        return wasm.getTextRange(ts, tp, 0, Math.min(len, maxChars));
       }
-
-      let result = '';
-      let totalSections = 1;
-      try {
-        totalSections = wasm.getParagraphCount(-1); // heuristic
-      } catch {
-        totalSections = 1;
-      }
-
-      for (let s = 0; s < totalSections && result.length < maxChars; s++) {
-        let paraCount = 0;
-        try {
-          paraCount = wasm.getParagraphCount(s);
-        } catch {
-          break;
-        }
-        for (let p = 0; p < paraCount && result.length < maxChars; p++) {
-          const len = wasm.getParagraphLength(s, p);
-          if (len > 0) {
-            const remaining = maxChars - result.length;
-            result += wasm.getTextRange(s, p, 0, Math.min(len, remaining));
-            if (p < paraCount - 1) result += '\n';
-          }
-        }
-        if (s < totalSections - 1) result += '\n--- 다음 섹션 ---\n';
-      }
-
-      if (result.length >= maxChars) {
-        result += '\n...(문서가 너무 길어 잘렸습니다)';
-      }
-      return result;
+      return readAllText(maxChars);
     }
 
     case 'get_document_info': {
       const info: string[] = [];
-      info.push(`페이지 수: ${wasm.pageCount}`);
+      info.push(`페이지: ${wasm.pageCount}`);
       info.push(`파일명: ${wasm.fileName}`);
-      let totalSections = 1;
-      try {
-        totalSections = wasm.getParagraphCount(-1);
-      } catch { /* fallback */ }
-      info.push(`섹션 수: ${totalSections}`);
-      let totalParas = 0;
-      for (let s = 0; s < totalSections; s++) {
-        try {
-          totalParas += wasm.getParagraphCount(s);
-        } catch { break; }
+      let sections = 1, totalParas = 0;
+      try { sections = wasm.getParagraphCount(-1); } catch { /* */ }
+      for (let s = 0; s < sections; s++) {
+        try { totalParas += wasm.getParagraphCount(s); } catch { break; }
       }
-      info.push(`총 문단 수: ${totalParas}`);
+      info.push(`섹션: ${sections}, 문단: ${totalParas}`);
       return info.join('\n');
+    }
+
+    case 'get_document_structure': {
+      const out: string[] = [];
+      let sections = 1;
+      try { sections = wasm.getParagraphCount(-1); } catch { /* */ }
+
+      let totalPics = 0, totalFns = 0, hfCount = 0;
+      const allBookmarks: string[] = [];
+      try {
+        const bms = wasm.getBookmarks();
+        for (const b of bms) {
+          allBookmarks.push(`${b.name} (s${b.sec}p${b.para})`);
+        }
+      } catch { /* */ }
+
+      try {
+        const fields = wasm.getFieldList();
+        const fInfo = fields.map((f) =>
+          `${f.guide || f.name || f.fieldId} (id:${f.fieldId})`
+        );
+        if (fInfo.length > 0) out.push(`필드: ${fInfo.join(', ')}`);
+      } catch { /* */ }
+
+      try {
+        for (let pg = 0; pg < wasm.pageCount; pg++) {
+          try {
+            const layout = wasm.getPageControlLayout(pg);
+            if (layout?.controls) totalPics += layout.controls.length;
+          } catch { /* */ }
+        }
+      } catch { /* */ }
+
+      try {
+        const list = wasm.getHeaderFooterList(0, true, 0);
+        if (list?.ok && list.items?.length) hfCount = list.items.length;
+      } catch { /* */ }
+
+      try {
+        for (let pg = 0; pg < wasm.pageCount; pg++) {
+          for (let fi = 0; fi < 50; fi++) {
+            try {
+              const info = wasm.getPageFootnoteInfo(pg, fi);
+              if (info?.ok) totalFns++; else break;
+            } catch { break; }
+          }
+        }
+      } catch { /* */ }
+
+      out.unshift(`전체 구조: ${sections}섹션, ${wasm.pageCount}페이지`);
+      if (totalPics > 0) out.push(`그림/개체: ${totalPics}개`);
+      if (totalFns > 0) out.push(`각주: ${totalFns}개`);
+      if (hfCount > 0) out.push(`머리말/꼬리말: ${hfCount}개`);
+      if (allBookmarks.length > 0) out.push(`책갈피: ${allBookmarks.join('; ')}`);
+
+      return out.join('\n') || '문서 구조를 파악할 수 없습니다.';
     }
 
     case 'get_caret_position': {
       const pos = wasm.getCaretPosition();
-      if (!pos) return '커서 위치를 알 수 없습니다. 문서가 로드되지 않았을 수 있습니다.';
-      return `섹션: ${pos.sectionIndex}, 문단: ${pos.paragraphIndex}, 글자 오프셋: ${pos.charOffset}`;
+      if (!pos) return '커서 위치를 알 수 없습니다.';
+      return `섹션=${pos.sectionIndex}, 문단=${pos.paragraphIndex}, 오프셋=${pos.charOffset}`;
     }
 
+    case 'get_current_page_text':
+      return readAllText(4000);
+
+    case 'get_table_content': {
+      const out: string[] = [];
+      let sections = 1, tableIdx = 0;
+      try { sections = wasm.getParagraphCount(-1); } catch { /* */ }
+      for (let s = 0; s < sections; s++) {
+        let pc = 0;
+        try { pc = wasm.getParagraphCount(s); } catch { break; }
+        for (let p = 0; p < pc; p++) {
+          try {
+            const dims = wasm.getTableDimensions(s, p, 0);
+            if (!dims?.rowCount) continue;
+            tableIdx++;
+            const rows = dims.rowCount, cols = dims.colCount;
+            out.push(`[표${tableIdx}] s${s}p${p} ${rows}행x${cols}열`);
+            for (let r = 0; r < Math.min(rows, 20); r++) {
+              const rowTexts: string[] = [];
+              for (let c = 0; c < cols; c++) {
+                try {
+                  const cellIdx = r * cols + c;
+                  let ct = '';
+                  let cellParas = 0;
+                  try { cellParas = wasm.getCellParagraphCount(s, p, 0, cellIdx); } catch { /* */ }
+                  for (let cp = 0; cp < cellParas; cp++) {
+                    const txt = wasm.getTextInCell(s, p, 0, cellIdx, cp, 0, 500);
+                    if (txt) ct += txt;
+                  }
+                  rowTexts.push(ct || '(빈셀)');
+                } catch { rowTexts.push('?'); }
+              }
+              out.push(`  행${r}: ${rowTexts.join(' | ')}`);
+            }
+            if (rows > 20) out.push(`  ...(${rows - 20}행 생략)`);
+          } catch { /* */ }
+        }
+      }
+      return out.join('\n') || '표가 없습니다.';
+    }
+
+    case 'get_header_footer': {
+      const out: string[] = [];
+      let sections = 1;
+      try { sections = wasm.getParagraphCount(-1); } catch { /* */ }
+      for (let s = 0; s < sections; s++) {
+        for (const isHeader of [true, false]) {
+          for (const applyTo of [0, 1, 2]) {
+            try {
+              const c = wasm.getHeaderFooter(s, isHeader, applyTo);
+              if (c) {
+                const t = (isHeader ? '머리말' : '꼬리말') + (applyTo === 1 ? '(짝수)' : applyTo === 2 ? '(홀수)' : '(양쪽)');
+                out.push(`[s${s} ${t}] ${c.substring(0, 500)}`);
+              }
+            } catch { /* */ }
+          }
+        }
+      }
+      try {
+        const list = wasm.getHeaderFooterList(0, true, 0);
+        if (list?.ok && list.items?.length) {
+          out.push(`\n전체 ${list.items.length}개: ${list.items.map((it: Record<string, unknown>) => it.label).join(', ')}`);
+        }
+      } catch { /* */ }
+      return out.join('\n') || '머리말/꼬리말이 없습니다.';
+    }
+
+    case 'get_footnotes': {
+      const out: string[] = [];
+      let totalFns = 0;
+      for (let pg = 0; pg < wasm.pageCount; pg++) {
+        for (let fi = 0; fi < 100; fi++) {
+          try {
+            const info = wasm.getPageFootnoteInfo(pg, fi);
+            if (!info?.ok) break;
+            totalFns++;
+            const fnInfo = wasm.getFootnoteInfo(info.sectionIdx, info.paraIdx, info.controlIdx);
+            if (fnInfo?.ok) {
+              out.push(`[각주${fnInfo.number}] s${info.sectionIdx}p${info.paraIdx}: ${(fnInfo.texts || []).join('').substring(0, 300)}`);
+            }
+          } catch { break; }
+        }
+      }
+      return out.join('\n') || `각주: ${totalFns > 0 ? `${totalFns}개` : '없음'}`;
+    }
+
+    case 'get_char_format': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const o = args.charOffset as number;
+      try {
+        const cp = wasm.getCharPropertiesAt(s, p, o);
+        return [
+          `폰트: ${cp.fontFamily ?? '?'} ${cp.fontSize ?? '?'}pt`,
+          `굵기:${cp.bold ? 'Y' : 'N'} 기울임:${cp.italic ? 'Y' : 'N'} 밑줄:${cp.underline ? 'Y' : 'N'}`,
+          `색:${cp.textColor ?? '?'}`,
+        ].join('\n');
+      } catch { return '서식 읽기 실패'; }
+    }
+
+    case 'get_para_format': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      try {
+        const pp = wasm.getParaPropertiesAt(s, p);
+        return [
+          `정렬: ${pp.alignment ?? '?'}`,
+          `줄간격: ${pp.lineSpacing ?? '?'} 전여백:${pp.spacingBefore ?? 0} 후여백:${pp.spacingAfter ?? 0}`,
+          `왼여백:${pp.marginLeft ?? 0} 오른여백:${pp.marginRight ?? 0} 들여쓰기:${pp.indent ?? 0}`,
+        ].join('\n');
+      } catch { return '문단 서식 읽기 실패'; }
+    }
+
+    case 'get_picture_shapes': {
+      const out: string[] = [];
+      let total = 0;
+      for (let pg = 0; pg < wasm.pageCount; pg++) {
+        try {
+          const layout = wasm.getPageControlLayout(pg);
+          if (layout?.controls?.length) {
+            for (const ctrl of layout.controls) {
+              total++;
+              out.push(`[${ctrl.type || '개체'}] p${pg} s${ctrl.secIdx}p${ctrl.paraIdx}`);
+              if (out.length > 50) break;
+            }
+          }
+        } catch { /* */ }
+        if (out.length > 50) { out.push('...(50개 초과 생략)'); break; }
+      }
+      return out.join('\n') || `그림/개체: ${total > 0 ? `${total}개` : '없음'}`;
+    }
+
+    case 'get_fields': {
+      try {
+        const fields = wasm.getFieldList();
+        if (!fields?.length) return '필드 없음';
+        const out: string[] = [];
+        for (const f of fields) {
+          let v = '';
+          try {
+            const fv = wasm.getFieldValue(f.fieldId);
+            if (fv?.ok) v = `="${fv.value}"`;
+          } catch { /* */ }
+          out.push(`[id:${f.fieldId}] ${f.guide || f.name || '?'} ${v}`);
+        }
+        return `${fields.length}개 필드:\n${out.join('\n')}`;
+      } catch { return '필드 읽기 실패'; }
+    }
+
+    case 'get_bookmarks': {
+      try {
+        const bms = wasm.getBookmarks();
+        if (!bms?.length) return '책갈피 없음';
+        return bms.map((b) =>
+          `${b.name}: s${b.sec}p${b.para}@${b.charPos}`
+        ).join('\n');
+      } catch { return '책갈피 읽기 실패'; }
+    }
+
+    case 'get_para_format': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      try {
+        const pp = wasm.getParaPropertiesAt(s, p);
+        return [
+          `정렬: ${pp.alignment ?? '?'}`,
+          `줄간격: ${pp.lineSpacing ?? '?'} 전여백:${pp.spacingBefore ?? 0} 후여백:${pp.spacingAfter ?? 0}`,
+          `왼여백:${pp.marginLeft ?? 0} 오른여백:${pp.marginRight ?? 0} 들여쓰기:${pp.indent ?? 0}`,
+        ].join('\n');
+      } catch { return '문단 서식 읽기 실패'; }
+    }
+
+    case 'get_style_at': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      try {
+        const st = wasm.getStyleAt(s, p);
+        return `스타일: ${st.name} (id:${st.id})`;
+      } catch { return '스타일 읽기 실패'; }
+    }
+
+    case 'get_picture_shapes': {
+      const out: string[] = [];
+      let total = 0;
+      for (let pg = 0; pg < wasm.pageCount; pg++) {
+        try {
+          const layout = wasm.getPageControlLayout(pg);
+          if (layout?.controls?.length) {
+            for (const ctrl of layout.controls) {
+              total++;
+              out.push(`[${ctrl.type || '개체'}] p${pg} s${ctrl.secIdx}p${ctrl.paraIdx}`);
+              if (out.length > 50) break;
+            }
+          }
+        } catch { /* */ }
+        if (out.length > 50) { out.push('...(50개 초과 생략)'); break; }
+      }
+      return out.join('\n') || `그림/개체: ${total > 0 ? `${total}개` : '없음'}`;
+    }
+
+    case 'get_fields': {
+      try {
+        const fields = wasm.getFieldList();
+        if (!fields?.length) return '필드 없음';
+        const out: string[] = [];
+        for (const f of fields) {
+          let v = '';
+          try {
+            const fv = wasm.getFieldValue(f.fieldId);
+            if (fv?.ok) v = `="${fv.value}"`;
+          } catch { /* */ }
+          out.push(`[id:${f.fieldId}] ${f.guide || f.name || '?'} ${v}`);
+        }
+        return `${fields.length}개 필드:\n${out.join('\n')}`;
+      } catch { return '필드 읽기 실패'; }
+    }
+
+    case 'get_bookmarks': {
+      try {
+        const bms = wasm.getBookmarks();
+        if (!bms?.length) return '책갈피 없음';
+        return bms.map((b) =>
+          `${b.name}: s${b.sec}p${b.para}@${b.charPos}`
+        ).join('\n');
+      } catch { return '책갈피 읽기 실패'; }
+    }
+
+    // ── 편집 ──
     case 'insert_text': {
-      const sec = args.section as number;
-      const para = args.paragraph as number;
-      const off = args.charOffset as number;
-      const text = args.text as string;
-      wasm.insertText(sec, para, off, text);
-      return `텍스트 삽입 완료: 섹션=${sec}, 문단=${para}, 오프셋=${off}, 글자 수=${text.length}`;
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const o = args.charOffset as number;
+      const t = args.text as string;
+      wasm.insertText(s, p, o, t);
+      return `삽입 완료: s${s}p${p}@${o} +${t.length}글자`;
     }
 
     case 'delete_text': {
-      const sec = args.section as number;
-      const para = args.paragraph as number;
-      const off = args.charOffset as number;
-      const count = args.count as number;
-      wasm.deleteText(sec, para, off, count);
-      return `텍스트 삭제 완료: 섹션=${sec}, 문단=${para}, 오프셋=${off}, 삭제 글자 수=${count}`;
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const o = args.charOffset as number;
+      const c = args.count as number;
+      wasm.deleteText(s, p, o, c);
+      return `삭제 완료: s${s}p${p}@${o} -${c}글자`;
     }
 
     case 'replace_all': {
       const search = args.search as string;
       const replace = args.replace as string;
-      const caseSensitive = (args.caseSensitive as boolean) ?? false;
-      const result = wasm.replaceAll(search, replace, caseSensitive);
-      if (result.ok) {
-        return `찾아바꾸기 완료: "${search}" → "${replace}", ${result.count ?? '?'}건 변경됨`;
-      }
-      return `찾아바꾸기 실패`;
+      const cs = (args.caseSensitive as boolean) ?? false;
+      const r = wasm.replaceAll(search, replace, cs);
+      return r.ok ? `"${search}"→"${replace}" ${r.count ?? '?'}건` : '찾아바꾸기 실패';
     }
 
     case 'search_text': {
-      const query = args.query as string;
-      const caseSensitive = (args.caseSensitive as boolean) ?? false;
-      const result = wasm.searchText(query, 0, 0, 0, true, caseSensitive);
-      if (result.found) {
-        return `검색 결과 찾음: 섹션=${result.sec}, 문단=${result.para}, 오프셋=${result.charOffset}`;
-      }
-      return `"${query}" 를 찾을 수 없습니다.`;
+      const q = args.query as string;
+      const cs = (args.caseSensitive as boolean) ?? false;
+      const r = wasm.searchText(q, 0, 0, 0, true, cs);
+      return r.found ? `찾음: s${r.sec}p${r.para}@${r.charOffset}` : `"${q}" 없음`;
     }
 
     case 'split_paragraph': {
-      const sec = args.section as number;
-      const para = args.paragraph as number;
-      const off = args.charOffset as number;
-      wasm.splitParagraph(sec, para, off);
-      return `문단 나누기 완료: 섹션=${sec}, 문단=${para}, 오프셋=${off}`;
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const o = args.charOffset as number;
+      wasm.splitParagraph(s, p, o);
+      return `문단 분할: s${s}p${p}@${o}`;
     }
 
     case 'merge_paragraph': {
-      const sec = args.section as number;
-      const para = args.paragraph as number;
-      wasm.mergeParagraph(sec, para);
-      return `문단 합치기 완료: 섹션=${sec}, 문단=${para}`;
-    }
-
-    case 'get_current_page_text': {
-      const pagesAround = (args.pagesAround as number) ?? 2;
-      const totalSections = wasm.getParagraphCount(-1) || 1;
-      let result = '';
-
-      for (let s = 0; s < totalSections; s++) {
-        let paraCount = 0;
-        try {
-          paraCount = wasm.getParagraphCount(s);
-        } catch {
-          break;
-        }
-        for (let p = 0; p < paraCount; p++) {
-          const len = wasm.getParagraphLength(s, p);
-          if (len > 0) {
-            result += wasm.getTextRange(s, p, 0, len);
-            if (p < paraCount - 1) result += '\n';
-          }
-        }
-        if (result.length > 3000) break;
-      }
-
-      if (result.length > 3000) {
-        result = result.substring(0, 3000) + '\n...(주변 텍스트가 잘렸습니다)';
-      }
-      return result || '(문서에 텍스트가 없습니다)';
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      wasm.mergeParagraph(s, p);
+      return `문단 병합: s${s}p${p}`;
     }
 
     default:
