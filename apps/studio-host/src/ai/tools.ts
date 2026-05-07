@@ -160,12 +160,52 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
       },
     },
     {
-      name: 'merge_paragraph',
-      description: '문단 합치기.',
+      name: 'insert_text_in_cell',
+      description: '표 셀 안에 텍스트를 삽입합니다. cellIdx = row * cols + col.',
       parameters: {
         type: 'object',
-        properties: { section: { type: 'integer' }, paragraph: { type: 'integer' } },
-        required: ['section', 'paragraph'],
+        properties: {
+          section: { type: 'integer', description: '표가 있는 섹션' },
+          paragraph: { type: 'integer', description: '표가 있는 문단' },
+          controlIdx: { type: 'integer', description: '표 컨트롤 인덱스 (보통 0)' },
+          cellIdx: { type: 'integer', description: '셀 인덱스 = 행번호 × 열개수 + 열번호' },
+          cellParagraph: { type: 'integer', description: '셀 내 문단 인덱스 (보통 0)' },
+          charOffset: { type: 'integer', description: '글자 오프셋 (0=처음, 큰값=끝)' },
+          text: { type: 'string', description: '삽입할 텍스트' },
+        },
+        required: ['section', 'paragraph', 'controlIdx', 'cellIdx', 'cellParagraph', 'charOffset', 'text'],
+      },
+    },
+    {
+      name: 'delete_text_in_cell',
+      description: '표 셀 안의 텍스트를 삭제합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          controlIdx: { type: 'integer' },
+          cellIdx: { type: 'integer' },
+          cellParagraph: { type: 'integer' },
+          charOffset: { type: 'integer' },
+          count: { type: 'integer' },
+        },
+        required: ['section', 'paragraph', 'controlIdx', 'cellIdx', 'cellParagraph', 'charOffset', 'count'],
+      },
+    },
+    {
+      name: 'read_cell_text',
+      description: '표 셀 안의 텍스트를 읽습니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          controlIdx: { type: 'integer' },
+          cellIdx: { type: 'integer' },
+          cellParagraph: { type: 'integer' },
+        },
+        required: ['section', 'paragraph', 'controlIdx', 'cellIdx', 'cellParagraph'],
       },
     },
   ];
@@ -558,6 +598,41 @@ export function executeHwpTool(
       const p = args.paragraph as number;
       wasm.mergeParagraph(s, p);
       return `문단 병합: s${s}p${p}`;
+    }
+
+    case 'insert_text_in_cell': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const ci = args.controlIdx as number;
+      const cellIdx = args.cellIdx as number;
+      const cp = args.cellParagraph as number;
+      const off = args.charOffset as number;
+      const text = args.text as string;
+      wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
+      return `셀 텍스트 삽입: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} +${text.length}글자`;
+    }
+
+    case 'delete_text_in_cell': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const ci = args.controlIdx as number;
+      const cellIdx = args.cellIdx as number;
+      const cp = args.cellParagraph as number;
+      const off = args.charOffset as number;
+      const count = args.count as number;
+      wasm.deleteTextInCell(s, p, ci, cellIdx, cp, off, count);
+      return `셀 텍스트 삭제: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} -${count}글자`;
+    }
+
+    case 'read_cell_text': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const ci = args.controlIdx as number;
+      const cellIdx = args.cellIdx as number;
+      const cp = args.cellParagraph as number;
+      const len = wasm.getCellParagraphLength(s, p, ci, cellIdx, cp);
+      const text = wasm.getTextInCell(s, p, ci, cellIdx, cp, 0, Math.min(len, 500));
+      return text || '(빈 셀)';
     }
 
     default:

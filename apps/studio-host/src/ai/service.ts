@@ -4,7 +4,7 @@ import { AiClient } from './client';
 import { executeHwpTool } from './tools';
 import type { AiSettings, ChatMessage, ToolCall } from './types';
 
-const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph']);
+const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph', 'insert_text_in_cell', 'delete_text_in_cell']);
 
 function buildSystemPrompt(reasoning: string): string {
   const guide = reasoning === 'off'
@@ -14,8 +14,8 @@ function buildSystemPrompt(reasoning: string): string {
   return `너는 한글 문서(HWP) 편집 에이전트야. 텍스트뿐 아니라 표, 머리말/꼬리말, 각주, 서식, 그림, 필드, 책갈피까지 모두 볼 수 있어.
 
 [사용 가능한 도구]
-읽기: read_document_text, get_document_info, get_document_structure, get_caret_position, get_current_page_text, get_table_content, get_header_footer, get_footnotes, get_char_format, get_para_format, get_style_at, get_picture_shapes, get_fields, get_bookmarks
-편집: insert_text, delete_text, replace_all, search_text, split_paragraph, merge_paragraph
+읽기: read_document_text, get_document_info, get_document_structure, get_caret_position, get_current_page_text, get_table_content, get_header_footer, get_footnotes, get_char_format, get_para_format, get_style_at, get_picture_shapes, get_fields, get_bookmarks, read_cell_text
+편집: insert_text, delete_text, replace_all, search_text, split_paragraph, merge_paragraph, insert_text_in_cell, delete_text_in_cell
 
 [도구 호출법]
 \`\`\`tool
@@ -27,9 +27,10 @@ function buildSystemPrompt(reasoning: string): string {
 2. 사용자가 요청한 텍스트를 임의로 요약하거나 변형하지 말고 정확히 삽입/수정해.
 3. 수정 전 반드시 read_document_text로 현재 내용을 확인하고, 수정 후 다시 읽어 검증해.
 4. replace_all 할 때는 띄어쓰기, 줄바꿈, 특수문자까지 정확히 일치해야 한다. 부분 일치는 안 된다.
-5. 표 셀 안의 내용을 수정할 때는 get_table_content로 구조를 먼저 파악해.
-6. 사용자가 "써줘", "넣어줘" 하면 현재 커서 위치나 문맥을 확인 후 정확한 위치에 삽입해.
-7. ${guide}`;
+5. 표 안의 내용은 insert_text_in_cell/delete_text_in_cell/read_cell_text를 사용해. cellIdx = row * cols + col. controlIdx는 보통 0. get_table_content로 먼저 구조를 파악한 후 정확한 셀 인덱스를 계산해.
+6. 표 밖의 일반 텍스트는 insert_text/delete_text를 사용해. 표 안과 밖을 혼동하지 마.
+7. 사용자가 "써줘", "넣어줘" 하면 현재 커서 위치나 문맥을 확인 후 정확한 위치에 삽입해.
+8. ${guide}`;
 }
 
 function parseToolBlocks(text: string): { calls: ToolCall[]; remaining: string } {
@@ -51,9 +52,11 @@ function parseToolBlocks(text: string): { calls: ToolCall[]; remaining: string }
 
 export class AiService {
   private client = new AiClient();
+  private sessionId: string | null = null;
   private wasm: WasmBridge;
   private eventBus: EventBus;
   private settings: AiSettings | null = null;
+  private conversationHistory: Array<{ role: string; content: string }> = [];
 
   constructor(wasm: WasmBridge, eventBus: EventBus) {
     this.wasm = wasm;
@@ -82,11 +85,18 @@ export class AiService {
     const reasoning = this.settings.reasoning ?? 'medium';
     const system = buildSystemPrompt(reasoning);
 
-    type ApiMsg = { role: string; content: string };
-    const apiMessages: ApiMsg[] = [
+    // Build API messages from conversation history + current user message
+    const apiMessages: Array<{ role: string; content: string }> = [
       { role: 'system', content: system },
+      ...this.conversationHistory,
       { role: 'user', content: userMessage },
     ];
+    // Keep history manageable (last 20 messages + system)
+    if (this.conversationHistory.length > 20) {
+      this.conversationHistory = this.conversationHistory.slice(-20);
+    }
+    // Add user message to history
+    this.conversationHistory.push({ role: 'user', content: userMessage });
 
     const MAX_ROUNDS = 8;
     for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -132,6 +142,7 @@ export class AiService {
         }
 
         apiMessages.push({ role: 'assistant', content: responseText });
+        this.conversationHistory.push({ role: 'assistant', content: responseText });
 
         let modified = false;
         const toolResults: string[] = [];
@@ -140,14 +151,11 @@ export class AiService {
           toolResults.push(`[${tc.name}] ${result}`);
           messages.push({ role: 'tool', content: `🔧 ${result}`, toolCallId: tc.id, timestamp: Date.now() });
           if (MODIFYING_TOOLS.has(tc.name)) modified = true;
-          // Yield after each tool execution
           await new Promise((r) => setTimeout(r, 0));
         }
 
-        apiMessages.push({
-          role: 'user',
-          content: `[도구 결과]\n${toolResults.join('\n')}\n\n결과를 바탕으로 계속 진행해. 더 이상 도구가 필요 없으면 최종 응답만 해.`,
-        });
+        const toolResultMsg = `[도구 결과]\n${toolResults.join('\n')}\n\n결과를 바탕으로 계속 진행해. 더 이상 도구가 필요 없으면 최종 응답만 해.`;
+        apiMessages.push({ role: 'user', content: toolResultMsg });
 
         if (modified) {
           this.eventBus.emit('document-changed');
@@ -161,6 +169,7 @@ export class AiService {
         const am: ChatMessage = { role: 'assistant', content: clean, timestamp: Date.now() };
         messages.push(am);
         onUpdate?.(am);
+        this.conversationHistory.push({ role: 'assistant', content: clean });
       }
       break;
     }
