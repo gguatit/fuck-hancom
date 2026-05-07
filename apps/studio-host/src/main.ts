@@ -189,6 +189,7 @@ async function initialize(): Promise<void> {
     const aiChatPanel = new AiChatPanel(
       document.getElementById('ai-chat-panel')!,
       wasm,
+      eventBus,
     );
 
     eventBus.on('toggle-ai-chat', () => {

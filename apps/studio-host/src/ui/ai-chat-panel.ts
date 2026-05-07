@@ -3,6 +3,7 @@ import type { ChatMessage } from '@/ai/types';
 import { AiClient } from '@/ai/client';
 import { AiSettingsDialog } from './ai-settings-dialog';
 import type { WasmBridge } from '@/core/wasm-bridge';
+import type { EventBus } from '@/core/event-bus';
 
 export class AiChatPanel {
   private container: HTMLElement;
@@ -18,11 +19,13 @@ export class AiChatPanel {
   private statusEl!: HTMLElement;
   private loading = false;
   private wasm: WasmBridge;
+  private eventBus: EventBus;
 
-  constructor(container: HTMLElement, wasm: WasmBridge) {
+  constructor(container: HTMLElement, wasm: WasmBridge, eventBus: EventBus) {
     this.container = container;
     this.wasm = wasm;
-    this.service = new AiService(wasm);
+    this.eventBus = eventBus;
+    this.service = new AiService(wasm, eventBus);
     this.settingsDialog = new AiSettingsDialog(new AiClient());
 
     this.toggleBtn = document.createElement('button');

@@ -145,6 +145,24 @@ export class AiSettingsDialog {
     loadModelsBtn.textContent = '모델 로드';
     modelRow.appendChild(loadModelsBtn);
 
+    const reasoningRow = document.createElement('div');
+    reasoningRow.className = 'aic-setting-row';
+    body.appendChild(reasoningRow);
+
+    const reasoningLabel = document.createElement('label');
+    reasoningLabel.textContent = '추론:';
+    reasoningRow.appendChild(reasoningLabel);
+
+    const reasoningSelect = document.createElement('select');
+    reasoningSelect.className = 'aic-select';
+    for (const [val, label] of [['medium', '보통'], ['high', '높음'], ['xhigh', '최고'], ['low', '낮음'], ['off', '끔']]) {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = label;
+      reasoningSelect.appendChild(opt);
+    }
+    reasoningRow.appendChild(reasoningSelect);
+
     const statusEl = document.createElement('div');
     statusEl.className = 'aic-status';
     body.appendChild(statusEl);
@@ -239,7 +257,7 @@ export class AiSettingsDialog {
         return;
       }
 
-      this.resolve?.({ provider, apiKey, modelId });
+      this.resolve?.({ provider, apiKey, modelId, reasoning: reasoningSelect.value as AiSettings['reasoning'] });
       this.hide();
     });
   }

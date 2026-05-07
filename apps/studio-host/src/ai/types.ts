@@ -2,6 +2,7 @@ export interface AiSettings {
   provider: 'go' | 'zen';
   apiKey: string;
   modelId: string;
+  reasoning?: 'off' | 'low' | 'medium' | 'high' | 'xhigh';
 }
 
 export interface ChatMessage {

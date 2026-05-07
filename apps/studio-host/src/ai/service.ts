@@ -1,9 +1,13 @@
 import type { WasmBridge } from '@/core/wasm-bridge';
+import type { EventBus } from '@/core/event-bus';
 import { AiClient } from './client';
 import { executeHwpTool } from './tools';
 import type { AiSettings, ChatMessage, ToolCall } from './types';
 
-function buildSystemPrompt(): string {
+const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph']);
+
+function buildSystemPrompt(reasoning: string): string {
+  const thinking = reasoning === 'off' ? '' : `\n사용자의 요청을 처리할 때는 단계별로 생각하고 도구를 적극 활용해.`;
   return `너는 한글 문서(HWP) 편집 도우미야. 사용자가 한글 문서를 편집하는 것을 도와줘.
 
 네가 사용할 수 있는 도구:
@@ -34,7 +38,7 @@ function buildSystemPrompt(): string {
 \`\`\`
 
 한 번에 여러 도구를 호출할 수 있어. 도구 결과를 받은 후 최종 응답을 해.
-
+${thinking}
 규칙:
 1. 항상 한국어로 응답해.
 2. 문서 내용을 수정하기 전에 반드시 read_document_text로 현재 내용을 확인해.
@@ -63,7 +67,6 @@ function parseToolCalls(text: string): { calls: ToolCall[]; remaining: string } 
     } catch {
       // skip malformed tool calls
     }
-    // Remove this tool block from remaining text
     remaining = remaining.replace(match[0], '').trim();
   }
 
@@ -74,10 +77,12 @@ export class AiService {
   private client = new AiClient();
   private sessionId: string | null = null;
   private wasm: WasmBridge;
+  private eventBus: EventBus;
   private settings: AiSettings | null = null;
 
-  constructor(wasm: WasmBridge) {
+  constructor(wasm: WasmBridge, eventBus: EventBus) {
     this.wasm = wasm;
+    this.eventBus = eventBus;
   }
 
   async isServerReady(): Promise<boolean> {
@@ -108,13 +113,14 @@ export class AiService {
     const sessionId = await this.ensureSession();
     const messages: ChatMessage[] = [];
     const providerId = this.settings.provider === 'go' ? 'opencode-go' : 'opencode';
-    const system = buildSystemPrompt();
+    const reasoning = this.settings.reasoning ?? 'medium';
+    const system = buildSystemPrompt(reasoning);
 
     let currentParts: Array<{ type: string; text: string }> = [
       { type: 'text', text: userMessage },
     ];
 
-    const MAX_ROUNDS = 5;
+    const MAX_ROUNDS = 10;
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const response = await this.client.sendMessage(sessionId, {
         parts: currentParts,
@@ -129,35 +135,57 @@ export class AiService {
         }
       }
 
+      if (!responseText) break;
+
       const { calls, remaining } = parseToolCalls(responseText);
 
       if (calls.length > 0) {
+        // Notify UI about tool execution (thinking step)
+        const thinkingText = remaining.replace(/```tool[\s\S]*?```/g, '').trim();
+        if (thinkingText) {
+          const thinkingMsg: ChatMessage = {
+            role: 'assistant',
+            content: `💭 ${thinkingText}`,
+            timestamp: Date.now(),
+          };
+          messages.push(thinkingMsg);
+          onUpdate?.(thinkingMsg);
+        }
+
+        let modified = false;
         const toolResults: string[] = [];
         for (const tc of calls) {
           const result = executeHwpTool(tc.name, tc.arguments, this.wasm);
-          toolResults.push(result);
+          toolResults.push(`[${tc.name}] ${result}`);
           messages.push({
             role: 'tool',
-            content: result,
+            content: `🔧 ${tc.name}: ${result}`,
             toolCallId: tc.id,
             timestamp: Date.now(),
           });
+
+          if (MODIFYING_TOOLS.has(tc.name)) {
+            modified = true;
+          }
         }
 
-        // Send tool results as follow-up message
-        const resultsText = toolResults.join('\n');
+        // Trigger canvas re-render if document was modified
+        if (modified) {
+          this.eventBus.emit('document-changed');
+          this.markDirty();
+        }
+
         currentParts = [
-          { type: 'text', text: `[도구 실행 결과]\n${resultsText}\n\n이 결과를 바탕으로 계속 진행해줘.` },
+          { type: 'text', text: `[도구 실행 결과]\n${toolResults.join('\n')}\n\n이 결과를 바탕으로 계속 진행해줘. 최종 결과만 응답하고 더 이상 도구 호출이 필요 없으면 일반 텍스트로만 응답해.` },
         ];
         continue;
       }
 
       // No tool calls, this is the final response
-      const cleanContent = remaining || responseText;
-      if (cleanContent) {
+      if (remaining || responseText) {
         const assistantMsg: ChatMessage = {
           role: 'assistant',
-          content: cleanContent,
+          content: remaining || responseText,
           timestamp: Date.now(),
         };
         messages.push(assistantMsg);
@@ -167,5 +195,10 @@ export class AiService {
     }
 
     return messages;
+  }
+
+  private markDirty(): void {
+    const bridge = this.wasm as { markDocumentDirty?: () => void };
+    bridge.markDocumentDirty?.();
   }
 }
