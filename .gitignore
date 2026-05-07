@@ -40,6 +40,12 @@ Thumbs.db
 
 .claude/
 
+# TypeScript incremental build
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
 # 환경변수 (민감 정보)
 .env
 .env.docker

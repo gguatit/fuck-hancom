@@ -66,7 +66,7 @@ public beta 전까지는 아래 항목이 더 필요합니다.
 
 * HWPX 저장은 아직 막아 두었습니다. HWPX 열기는 가능하지만, 안전한 HWPX serializer가 준비되기 전까지 저장은 지원하지 않습니다.
 * autosave/recovery는 아직 없습니다.
-* 외부 파일 변경 감지는 아직 없습니다.
+* 외부 파일 변경 감지는 `external_modification_status` API로 구현되어 있으며, 저장 시 충돌 감지에 사용됩니다.
 * 큰 문서에서는 현재 WASM mirror를 거치는 구간이 있어 native-authoritative 구조로 더 개선해야 합니다.
 * signing, notarization, updater manifest는 배포 자격증명이 준비된 뒤 활성화할 예정입니다.
 

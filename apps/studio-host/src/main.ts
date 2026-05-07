@@ -46,8 +46,8 @@ type DirtyAwareBridge = {
 
 // E2E 테스트용 전역 노출 (개발 모드 전용)
 if (import.meta.env.DEV) {
-  (window as any).__wasm = wasm;
-  (window as any).__eventBus = eventBus;
+  window.__wasm = wasm;
+  window.__eventBus = eventBus;
 }
 let canvasView: CanvasView | null = null;
 let inputHandler: InputHandler | null = null;
@@ -219,8 +219,8 @@ async function initialize(): Promise<void> {
 
     // E2E 테스트용 전역 노출 (개발 모드 전용)
     if (import.meta.env.DEV) {
-      (window as any).__inputHandler = inputHandler;
-      (window as any).__canvasView = canvasView;
+      window.__inputHandler = inputHandler;
+      window.__canvasView = canvasView;
     }
   } catch (error) {
     msg.textContent = `문서 엔진 초기화 실패: ${error}`;
