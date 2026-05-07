@@ -113,19 +113,20 @@ export class AiChatPanel {
   }
 
   private async checkServer(): Promise<void> {
-    const ready = await this.service.isServerReady();
-    if (ready) {
-      this.statusEl.textContent = '🟢 서버 연결됨';
-      this.statusEl.style.color = '#4caf50';
-      if (this.service.isConfigured) {
-        this.addSystemMessage('open code AI Assistant 준비 완료! 문서를 열고 편집을 요청해보세요.');
-      } else {
-        this.addSystemMessage('open code 서버에 연결됐습니다.\n⚙ 버튼을 눌러 Go 또는 Zen API 키를 입력하고 모델을 선택하세요.');
-      }
+    if (!this.service.isConfigured) {
+      this.statusEl.textContent = '⚙ 설정 필요';
+      this.statusEl.style.color = '#ff9800';
+      this.addSystemMessage('AI Assistant를 사용하려면 ⚙ 버튼을 눌러 opencode Go 또는 Zen API 키를 입력하세요.\nAPI 키는 opencode.ai/auth에서 발급받을 수 있습니다.');
     } else {
-      this.statusEl.textContent = '🔴 서버 연결 안 됨';
-      this.statusEl.style.color = '#f44336';
-      this.addSystemMessage('opencode 서버를 찾을 수 없습니다.\n터미널에서 `opencode serve`를 실행하거나 opencode가 설치되어 있는지 확인하세요.');
+      const ready = await this.service.isServerReady();
+      if (ready) {
+        this.statusEl.textContent = '🟢 API 연결됨';
+        this.statusEl.style.color = '#4caf50';
+      } else {
+        this.statusEl.textContent = '🔴 API 연결 실패';
+        this.statusEl.style.color = '#f44336';
+        this.addSystemMessage('API 연결에 실패했습니다. API 키가 유효한지 확인하세요.');
+      }
     }
     this.updateSendButton();
   }

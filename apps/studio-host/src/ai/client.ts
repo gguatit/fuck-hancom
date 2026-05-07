@@ -48,7 +48,7 @@ export class AiClient {
   }
 
   async healthCheck(): Promise<boolean> {
-    if (!this.apiKey) return false;
+    if (!this.apiKey || !this.baseUrl) return false;
     try {
       const res = await fetch(`${this.baseUrl}/models`, {
         headers: { Authorization: `Bearer ${this.apiKey}` },
