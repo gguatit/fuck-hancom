@@ -1,3 +1,4 @@
+mod ai_server;
 mod app_quit;
 mod commands;
 mod font_catalog;
@@ -33,9 +34,12 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     linux_runtime::apply_linux_appimage_runtime_fixes();
 
+    let app_state = AppState::default();
+    ai_server::start_ai_server(&app_state.ai_server);
+
     let app = tauri::Builder::default()
         .enable_macos_default_menu(false)
-        .manage(AppState::default())
+        .manage(app_state)
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())

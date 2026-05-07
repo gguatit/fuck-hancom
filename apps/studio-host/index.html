@@ -78,6 +78,8 @@
           <div class="md-item" data-cmd="view:toggle-clip"><span class="md-icon"></span><span class="md-label">잘림 보기</span></div>
           <div class="md-item" data-cmd="view:grid-settings"><span class="md-icon icon-grid"></span><span class="md-label">격자 설정</span></div>
           <div class="md-sep"></div>
+          <div class="md-item" data-cmd="view:ai-chat"><span class="md-icon"></span><span class="md-label">AI Assistant</span><span class="md-shortcut">Ctrl+Shift+A</span></div>
+          <div class="md-sep"></div>
           <div class="md-sub">
             <span class="md-label">도구 상자</span><span class="md-arrow">▶</span>
             <div class="md-sub-panel">
@@ -555,6 +557,7 @@
     </div>
 
     <!-- 에디터 영역 (눈금자 포함) -->
+    <div id="main-content">
     <div id="editor-area">
       <div id="ruler-corner"></div>
       <canvas id="h-ruler"></canvas>
@@ -562,6 +565,8 @@
       <div id="scroll-container">
         <div id="scroll-content"></div>
       </div>
+    </div>
+    <div id="ai-chat-panel"></div>
     </div>
 
     <!-- 하단 상태 바 -->

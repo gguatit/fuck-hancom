@@ -24,6 +24,7 @@ import { insertCommands } from '@/command/commands/insert';
 import { tableCommands } from '@/command/commands/table';
 import { pageCommands } from '@/command/commands/page';
 import { toolCommands } from '@/command/commands/tool';
+import { aiCommands } from '@/command/commands/ai';
 import { ContextMenu } from '@/ui/context-menu';
 import { CommandPalette } from '@/ui/command-palette';
 import { showValidationModalIfNeeded } from '@/ui/validation-modal';
@@ -35,6 +36,7 @@ import { enhanceCustomSelects } from '@/ui/custom-select';
 import { UpdateNotice, type UpdateNoticeActions } from '@/ui/update-notice';
 import type { DesktopBridgeApi } from '@/core/tauri-bridge';
 import { initTheme } from '@/ui/options-dialog';
+import { AiChatPanel } from '@/ui/ai-chat-panel';
 
 initTheme();
 
@@ -97,6 +99,7 @@ registry.registerAll(insertCommands);
 registry.registerAll(tableCommands);
 registry.registerAll(pageCommands);
 registry.registerAll(toolCommands);
+registry.registerAll(aiCommands);
 
 // 상태 바 요소
 const sbMessage = () => document.getElementById('sb-message')!;
@@ -183,6 +186,15 @@ async function initialize(): Promise<void> {
     new MenuBar(document.getElementById('menu-bar')!, eventBus, dispatcher);
     installNonEditorContextMenuGuards(document);
 
+    const aiChatPanel = new AiChatPanel(
+      document.getElementById('ai-chat-panel')!,
+      wasm,
+    );
+
+    eventBus.on('toggle-ai-chat', () => {
+      aiChatPanel.toggle();
+    });
+
     // 툴바 내 data-cmd 버튼 클릭 → 커맨드 디스패치
     document.querySelectorAll('.tb-btn[data-cmd]').forEach(btn => {
       btn.addEventListener('mousedown', (e) => {
@@ -245,6 +257,7 @@ async function initialize(): Promise<void> {
     if (import.meta.env.DEV) {
       window.__inputHandler = inputHandler;
       window.__canvasView = canvasView;
+      window.__aiChatPanel = aiChatPanel;
     }
   } catch (error) {
     msg.textContent = `문서 엔진 초기화 실패: ${error}`;
@@ -283,10 +296,18 @@ function setupGlobalShortcuts(): void {
     ) {
       return;
     }
-    // InputHandler가 활성 상태이면 자체 처리에 맡김
-    if (inputHandler?.isActive()) return;
 
     const primaryModifier = hasPrimaryModifier(e, desktopPlatform);
+
+    // Ctrl+Shift+A → AI Assistant (항상 동작)
+    if (primaryModifier && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      dispatcher.dispatch('view:ai-chat');
+      return;
+    }
+
+    // InputHandler가 활성 상태이면 자체 처리에 맡김
+    if (inputHandler?.isActive()) return;
 
     // Alt+N / Alt+ㅜ → 새 문서 (문서 미로드 상태에서도 동작)
     if (e.altKey && !primaryModifier && !e.shiftKey) {

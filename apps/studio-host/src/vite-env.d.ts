@@ -13,4 +13,5 @@ interface Window {
   __eventBus?: import('@/core/event-bus').EventBus;
   __inputHandler?: import('@/engine/input-handler').InputHandler;
   __canvasView?: import('@/view/canvas-view').CanvasView;
+  __aiChatPanel?: import('@/ui/ai-chat-panel').AiChatPanel;
 }

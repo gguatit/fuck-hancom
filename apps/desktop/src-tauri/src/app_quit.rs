@@ -67,7 +67,7 @@ pub(crate) fn request_app_quit(app: &AppHandle) -> Result<(), String> {
     match next_label {
         Some(label) => emit_app_quit_request(app, &label),
         None => {
-            app.exit(0);
+            teardown_and_exit(app, 0);
             Ok(())
         }
     }
@@ -111,7 +111,7 @@ fn handle_quit_window_destroyed(app: &AppHandle, label: &str) -> Result<(), Stri
         QuitAdvance::Idle => Ok(()),
         QuitAdvance::Next(next_label) => emit_app_quit_request(app, &next_label),
         QuitAdvance::Complete => {
-            app.exit(0);
+            teardown_and_exit(app, 0);
             Ok(())
         }
     }
@@ -125,7 +125,7 @@ fn emit_app_quit_request(app: &AppHandle, label: &str) -> Result<(), String> {
         })
 }
 
-fn ordered_quit_labels(app: &AppHandle) -> Vec<String> {
+    fn ordered_quit_labels(app: &AppHandle) -> Vec<String> {
     let mut labels: Vec<String> = app.webview_windows().keys().cloned().collect();
     labels.sort();
     if let Some(target) = crate::windows::target_window_label(app) {
@@ -133,6 +133,11 @@ fn ordered_quit_labels(app: &AppHandle) -> Vec<String> {
         labels.insert(0, target);
     }
     labels
+}
+
+pub(crate) fn teardown_and_exit(app: &AppHandle, code: i32) {
+    crate::ai_server::stop_ai_server(&app.state::<AppState>().ai_server);
+    app.exit(code);
 }
 
 #[cfg(test)]

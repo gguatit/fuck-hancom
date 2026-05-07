@@ -36,6 +36,13 @@ const overrideIds = [
   'styles/custom-select.css',
   'styles/font-set-dialog.css',
   'styles/update-notice.css',
+  'ai/service',
+  'ai/tools',
+  'ai/types',
+  'ai/client',
+  'command/commands/ai',
+  'ui/ai-chat-panel',
+  'ui/ai-settings-dialog',
 ] as const;
 
 export function createHopOverrides(hopSrc: string) {

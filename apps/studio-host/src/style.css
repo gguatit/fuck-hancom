@@ -25,3 +25,5 @@
 @import '@/styles/update-notice.css';
 @import './styles/themes.css';
 @import '@/styles/responsive.css';
+@import './styles/ai-chat-panel.css';
+@import './styles/ai-settings-dialog.css';
