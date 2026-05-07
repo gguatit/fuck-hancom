@@ -39,6 +39,14 @@ export class AiService {
     return this.settings !== null;
   }
 
+  async loadStoredSettings(): Promise<AiSettings | null> {
+    const saved = await this.client.loadStoredSettings();
+    if (saved) {
+      this.settings = saved;
+    }
+    return saved;
+  }
+
   async sendMessage(userMessage: string, onUpdate?: (msg: ChatMessage) => void): Promise<ChatMessage[]> {
     if (!this.settings) throw new Error('AI 설정이 필요합니다. 먼저 API 키를 입력하세요.');
 

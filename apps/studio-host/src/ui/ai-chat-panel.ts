@@ -1,6 +1,7 @@
 import { AiService } from '@/ai/service';
 import type { ChatMessage } from '@/ai/types';
 import { AiSettingsDialog } from './ai-settings-dialog';
+import { AiClient } from '@/ai/client';
 import type { WasmBridge } from '@/core/wasm-bridge';
 import type { EventBus } from '@/core/event-bus';
 
@@ -41,6 +42,7 @@ export class AiChatPanel {
 
     this.build();
     this.show();
+    this.tryRestoreSettings();
   }
 
   private build(): void {
@@ -129,6 +131,15 @@ export class AiChatPanel {
       }
     }
     this.updateSendButton();
+  }
+
+  private async tryRestoreSettings(): Promise<void> {
+    const stored = await this.service.loadStoredSettings();
+    if (stored) {
+      this.statusEl.textContent = '🟢 설정 불러옴';
+      this.statusEl.style.color = '#4caf50';
+      this.updateSendButton();
+    }
   }
 
   private updateSendButton(): void {
