@@ -34,6 +34,9 @@ import { Ruler } from '@/view/ruler';
 import { enhanceCustomSelects } from '@/ui/custom-select';
 import { UpdateNotice, type UpdateNoticeActions } from '@/ui/update-notice';
 import type { DesktopBridgeApi } from '@/core/tauri-bridge';
+import { initTheme } from '@/ui/options-dialog';
+
+initTheme();
 
 const wasm = createBridge();
 const eventBus = new EventBus();

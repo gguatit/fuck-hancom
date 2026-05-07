@@ -1,0 +1,134 @@
+/* 다크 모드 */
+[data-theme="dark"] {
+  --color-primary: #7b9adc;
+  --color-primary-dark: #5a78b8;
+  --color-primary-light: #5a9ad9;
+  --color-primary-hover: #4a5a8a;
+  --color-primary-subtle: #6a7cba;
+  --color-accent-bg: #2a2d3a;
+  --color-accent-bg-light: #252838;
+
+  --color-surface: #1e1e1e;
+  --color-surface-raised: #2a2a2a;
+  --color-bg: #181818;
+  --color-bg-light: #1f1f1f;
+
+  --color-border: #444;
+  --color-border-light: #3a3a3a;
+  --color-border-lighter: #353535;
+  --color-border-dark: #555;
+  --color-border-input: #444;
+
+  --color-text: #e0e0e0;
+  --color-text-secondary: #bbb;
+  --color-text-muted: #999;
+  --color-text-hint: #777;
+  --color-text-disabled: #555;
+  --color-text-placeholder: #666;
+
+  --color-hover-bg: #333;
+  --color-active-bg: #444;
+  --color-selected-bg: #1e2a3a;
+  --color-focus-border: #5a9ad9;
+
+  --shadow-dropdown: 2px 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-dialog: 4px 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-light: 2px 2px 6px rgba(0, 0, 0, 0.4);
+
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+}
+
+/* 세피아 */
+[data-theme="sepia"] {
+  --color-surface: #f4ecd8;
+  --color-surface-raised: #f0e6c8;
+  --color-bg: #e8ddc0;
+  --color-bg-light: #efe5cc;
+
+  --color-border: #c4b896;
+  --color-border-light: #d4c8a6;
+  --color-border-lighter: #d8cca8;
+  --color-border-dark: #b8a882;
+  --color-border-input: #c4b896;
+
+  --color-text: #4a3728;
+  --color-text-secondary: #5a4738;
+  --color-text-muted: #7a6758;
+  --color-text-hint: #9a8778;
+
+  --color-hover-bg: #d8c898;
+  --color-active-bg: #c4b880;
+  --color-selected-bg: #e0d4a0;
+  --color-accent-bg: #e0d4a0;
+  --color-accent-bg-light: #e8dca8;
+}
+
+/* 고대비 */
+[data-theme="high-contrast"] {
+  --color-primary: #000;
+  --color-primary-dark: #000;
+  --color-primary-light: #000;
+  --color-primary-hover: #222;
+  --color-primary-subtle: #333;
+  --color-accent-bg: #fff;
+  --color-accent-bg-light: #fff;
+
+  --color-surface: #fff;
+  --color-surface-raised: #fff;
+  --color-bg: #fff;
+  --color-bg-light: #fff;
+
+  --color-border: #000;
+  --color-border-light: #000;
+  --color-border-lighter: #000;
+  --color-border-dark: #000;
+  --color-border-input: #000;
+
+  --color-text: #000;
+  --color-text-secondary: #000;
+  --color-text-muted: #000;
+  --color-text-hint: #333;
+  --color-text-disabled: #666;
+  --color-text-placeholder: #666;
+
+  --color-hover-bg: #ddd;
+  --color-active-bg: #bbb;
+  --color-selected-bg: #000;
+  --color-focus-border: #000;
+
+  --shadow-dropdown: 2px 2px 0 #000;
+  --shadow-dialog: 4px 4px 0 #000;
+  --shadow-light: none;
+}
+
+/* 테마 선택 카드 */
+.opt-theme-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+}
+.opt-theme-card:hover {
+  background: var(--color-hover-bg);
+}
+.opt-theme-card.active {
+  border-color: var(--color-primary);
+  background: var(--color-accent-bg);
+}
+.opt-theme-swatch {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border-light);
+  flex-shrink: 0;
+}
+.opt-theme-label {
+  white-space: nowrap;
+}
