@@ -553,75 +553,100 @@ export function executeHwpTool(
 
     // ── 편집 ──
     case 'insert_text': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      const o = args.charOffset as number;
-      const t = args.text as string;
-      wasm.insertText(s, p, o, t);
-      return `삽입 완료: s${s}p${p}@${o} +${t.length}글자`;
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const o = args.charOffset as number;
+        const t = args.text as string;
+        wasm.insertText(s, p, o, t);
+        return `삽입 완료: s${s}p${p}@${o} +${t.length}글자`;
+      } catch (e) { return `삽입 실패: ${e}`; }
     }
 
     case 'delete_text': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      const o = args.charOffset as number;
-      const c = args.count as number;
-      wasm.deleteText(s, p, o, c);
-      return `삭제 완료: s${s}p${p}@${o} -${c}글자`;
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const o = args.charOffset as number;
+        const c = args.count as number;
+        wasm.deleteText(s, p, o, c);
+        return `삭제 완료: s${s}p${p}@${o} -${c}글자`;
+      } catch (e) { return `삭제 실패: ${e}`; }
     }
 
     case 'replace_all': {
-      const search = args.search as string;
-      const replace = args.replace as string;
-      const cs = (args.caseSensitive as boolean) ?? false;
-      const r = wasm.replaceAll(search, replace, cs);
-      return r.ok ? `"${search}"→"${replace}" ${r.count ?? '?'}건` : '찾아바꾸기 실패';
+      try {
+        const search = args.search as string;
+        const replace = args.replace as string;
+        const cs = (args.caseSensitive as boolean) ?? false;
+        const r = wasm.replaceAll(search, replace, cs);
+        return r.ok ? `"${search}"→"${replace}" ${r.count ?? '?'}건` : '찾아바꾸기 실패: 결과 없음';
+      } catch (e) { return `찾아바꾸기 실패: ${e}`; }
     }
 
     case 'search_text': {
-      const q = args.query as string;
-      const cs = (args.caseSensitive as boolean) ?? false;
-      const r = wasm.searchText(q, 0, 0, 0, true, cs);
-      return r.found ? `찾음: s${r.sec}p${r.para}@${r.charOffset}` : `"${q}" 없음`;
+      try {
+        const q = args.query as string;
+        const cs = (args.caseSensitive as boolean) ?? false;
+        const r = wasm.searchText(q, 0, 0, 0, true, cs);
+        return r.found ? `찾음: s${r.sec}p${r.para}@${r.charOffset}` : `"${q}" 없음`;
+      } catch (e) { return `검색 실패: ${e}`; }
     }
 
     case 'split_paragraph': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      const o = args.charOffset as number;
-      wasm.splitParagraph(s, p, o);
-      return `문단 분할: s${s}p${p}@${o}`;
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const o = args.charOffset as number;
+        wasm.splitParagraph(s, p, o);
+        return `문단 분할: s${s}p${p}@${o}`;
+      } catch (e) { return `분할 실패: ${e}`; }
     }
 
     case 'merge_paragraph': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      wasm.mergeParagraph(s, p);
-      return `문단 병합: s${s}p${p}`;
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        wasm.mergeParagraph(s, p);
+        return `문단 병합: s${s}p${p}`;
+      } catch (e) { return `병합 실패: ${e}`; }
     }
 
     case 'insert_text_in_cell': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      const ci = args.controlIdx as number;
-      const cellIdx = args.cellIdx as number;
-      const cp = args.cellParagraph as number;
-      const off = args.charOffset as number;
-      const text = args.text as string;
-      wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
-      return `셀 텍스트 삽입: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} +${text.length}글자`;
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const ci = args.controlIdx as number;
+        const cellIdx = args.cellIdx as number;
+        const cp = args.cellParagraph as number;
+        const off = args.charOffset as number;
+        const text = args.text as string;
+        // Verify it's actually a table
+        try {
+          const dims = wasm.getTableDimensions(s, p, ci);
+          if (!dims?.rowCount) return '셀 삽입 실패: 해당 위치에 표가 없습니다. insert_text를 대신 사용하세요.';
+        } catch { return '셀 삽입 실패: 표를 찾을 수 없습니다. insert_text를 대신 사용하세요.'; }
+        wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
+        return `셀 삽입 완료: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} +${text.length}글자`;
+      } catch (e) { return `셀 삽입 실패: ${e}`; }
     }
 
     case 'delete_text_in_cell': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      const ci = args.controlIdx as number;
-      const cellIdx = args.cellIdx as number;
-      const cp = args.cellParagraph as number;
-      const off = args.charOffset as number;
-      const count = args.count as number;
-      wasm.deleteTextInCell(s, p, ci, cellIdx, cp, off, count);
-      return `셀 텍스트 삭제: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} -${count}글자`;
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const ci = args.controlIdx as number;
+        const cellIdx = args.cellIdx as number;
+        const cp = args.cellParagraph as number;
+        const off = args.charOffset as number;
+        const count = args.count as number;
+        try {
+          const dims = wasm.getTableDimensions(s, p, ci);
+          if (!dims?.rowCount) return '셀 삭제 실패: 해당 위치에 표가 없습니다. delete_text를 대신 사용하세요.';
+        } catch { return '셀 삭제 실패: 표를 찾을 수 없습니다. delete_text를 대신 사용하세요.'; }
+        wasm.deleteTextInCell(s, p, ci, cellIdx, cp, off, count);
+        return `셀 삭제 완료: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} -${count}글자`;
+      } catch (e) { return `셀 삭제 실패: ${e}`; }
     }
 
     case 'read_cell_text': {

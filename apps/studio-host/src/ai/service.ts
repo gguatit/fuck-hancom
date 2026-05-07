@@ -25,12 +25,11 @@ function buildSystemPrompt(reasoning: string): string {
 [정확도 핵심 규칙]
 1. 항상 한국어로 응답해.
 2. 사용자가 요청한 텍스트를 임의로 요약하거나 변형하지 말고 정확히 삽입/수정해.
-3. 수정 전 반드시 read_document_text로 현재 내용을 확인하고, 수정 후 다시 읽어 검증해.
+3. 수정 전 반드시 read_document_text로 현재 내용을 확인해.
 4. replace_all 할 때는 띄어쓰기, 줄바꿈, 특수문자까지 정확히 일치해야 한다. 부분 일치는 안 된다.
-5. 표 안의 내용은 insert_text_in_cell/delete_text_in_cell/read_cell_text를 사용해. cellIdx = row * cols + col. controlIdx는 보통 0. get_table_content로 먼저 구조를 파악한 후 정확한 셀 인덱스를 계산해.
-6. 표 밖의 일반 텍스트는 insert_text/delete_text를 사용해. 표 안과 밖을 혼동하지 마.
-7. 사용자가 "써줘", "넣어줘" 하면 현재 커서 위치나 문맥을 확인 후 정확한 위치에 삽입해.
-8. ${guide}`;
+5. 표 안의 내용은 insert_text_in_cell, 표 밖의 일반 텍스트는 insert_text를 사용해. get_table_content로 표 구조를 먼저 확인해. cellIdx = row * cols + col. controlIdx는 보통 0.
+6. ⚠️ 도구 실행 결과에 "실패"나 "오류"가 포함되면 절대 성공했다고 말하지 마. 다른 방법으로 다시 시도하거나 실패를 사용자에게 알려줘.
+7. ${guide}`;
 }
 
 function parseToolBlocks(text: string): { calls: ToolCall[]; remaining: string } {
