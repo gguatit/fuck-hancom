@@ -3,41 +3,6 @@ import type { AiSettings } from './types';
 const ZEN_BASE = 'https://opencode.ai/zen/v1';
 const GO_BASE = 'https://opencode.ai/zen/go/v1';
 
-interface OpenAiMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | null;
-  tool_calls?: Array<{
-    id: string;
-    type: 'function';
-    function: { name: string; arguments: string };
-  }>;
-  tool_call_id?: string;
-}
-
-interface OpenAiTool {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
-interface ChatResponse {
-  choices: Array<{
-    message: {
-      role: string;
-      content: string | null;
-      tool_calls?: Array<{
-        id: string;
-        type: 'function';
-        function: { name: string; arguments: string };
-      }>;
-    };
-    finish_reason: string;
-  }>;
-}
-
 export class AiClient {
   private apiKey = '';
   private baseUrl = '';
@@ -50,42 +15,40 @@ export class AiClient {
   async healthCheck(): Promise<boolean> {
     if (!this.apiKey || !this.baseUrl) return false;
     try {
-      const res = await fetch(`${this.baseUrl}/models`, {
-        headers: { Authorization: `Bearer ${this.apiKey}` },
+      await this.invoke('ai_proxy_models', {
+        baseUrl: this.baseUrl,
+        apiKey: this.apiKey,
       });
-      return res.ok;
+      return true;
     } catch {
       return false;
     }
   }
 
-  async chat(
-    messages: OpenAiMessage[],
-    tools: OpenAiTool[],
-    modelId: string,
-  ): Promise<ChatResponse> {
-    const body: Record<string, unknown> = {
-      model: modelId,
-      messages,
-    };
-    if (tools.length > 0) {
-      body.tools = tools;
-    }
-
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(body),
+  async chat(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.invoke('ai_proxy_request', {
+      baseUrl: this.baseUrl,
+      apiKey: this.apiKey,
+      body,
     });
+  }
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`API 오류 (${res.status}): ${text.substring(0, 300)}`);
+  async fetchModels(): Promise<Array<{ id: string; name: string }>> {
+    const data = await this.invoke<Record<string, unknown>>('ai_proxy_models', {
+      baseUrl: this.baseUrl,
+      apiKey: this.apiKey,
+    });
+    if (Array.isArray(data.data)) {
+      return data.data.map((m: Record<string, unknown>) => ({
+        id: String(m.id ?? ''),
+        name: String(m.id ?? ''),
+      }));
     }
+    return [];
+  }
 
-    return res.json();
+  private async invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return invoke<T>(command, args);
   }
 }

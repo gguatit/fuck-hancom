@@ -1,3 +1,4 @@
+mod ai_commands;
 mod ai_server;
 mod app_quit;
 mod commands;
@@ -27,6 +28,7 @@ use commands::{
     prepare_staged_hwp_save, print_webview, query_document, read_local_font, render_page_svg,
     reveal_in_folder, take_pending_open_paths,
 };
+use ai_commands::{ai_proxy_models, ai_proxy_request};
 use state::AppState;
 use updates::{get_update_state, restart_to_apply_update, start_update_install};
 
@@ -100,6 +102,8 @@ pub fn run() {
             get_update_state,
             start_update_install,
             restart_to_apply_update,
+            ai_proxy_request,
+            ai_proxy_models,
         ])
         .build(tauri::generate_context!())
         .expect("failed to build Fuck Hancom desktop app");

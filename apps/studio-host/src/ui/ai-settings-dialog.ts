@@ -183,20 +183,19 @@ export class AiSettingsDialog {
           ? 'https://opencode.ai/zen/go/v1'
           : 'https://opencode.ai/zen/v1';
 
-        // Try to fetch models dynamically from the API
+        // Try to fetch models dynamically via Tauri proxy
         let models: Array<{ id: string; name: string }> = [];
         try {
-          const res = await fetch(`${baseUrl}/models`, {
-            headers: { Authorization: `Bearer ${apiKey}` },
+          const { invoke } = await import('@tauri-apps/api/core');
+          const data = await invoke<Record<string, unknown>>('ai_proxy_models', {
+            baseUrl,
+            apiKey,
           });
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data.data)) {
-              models = data.data.map((m: Record<string, unknown>) => ({
-                id: String(m.id ?? ''),
-                name: String(m.id ?? ''),
-              }));
-            }
+          if (Array.isArray((data as Record<string, unknown>).data)) {
+            models = ((data as Record<string, unknown>).data as Array<Record<string, unknown>>).map((m: Record<string, unknown>) => ({
+              id: String(m.id ?? ''),
+              name: String(m.id ?? ''),
+            }));
           }
         } catch {
           // fallback to hardcoded

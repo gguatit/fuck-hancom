@@ -57,27 +57,35 @@ export class AiService {
 
     const MAX_ROUNDS = 10;
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const response = await this.client.chat(
-        apiMessages,
-        tools.map((t) => ({
-          type: 'function' as const,
-          function: { name: t.name, description: t.description, parameters: t.parameters },
-        })),
-        this.settings.modelId,
-      );
+      const requestBody: Record<string, unknown> = {
+        model: this.settings.modelId,
+        messages: apiMessages,
+      };
+      const toolDefs = tools.map((t) => ({
+        type: 'function' as const,
+        function: { name: t.name, description: t.description, parameters: t.parameters },
+      }));
+      if (toolDefs.length > 0) {
+        requestBody.tools = toolDefs;
+      }
 
-      const choice = response.choices?.[0];
+      const response = await this.client.chat(requestBody);
+
+      const choices = response.choices as Array<Record<string, unknown>> | undefined;
+      const choice = choices?.[0];
       if (!choice) break;
 
-      const msg = choice.message;
+      const msg = choice.message as Record<string, unknown> | undefined;
+      if (!msg) break;
 
       // Handle tool calls
-      if (msg.tool_calls && msg.tool_calls.length > 0) {
-        // Show thinking content if any
-        if (msg.content) {
+      const toolCalls = msg.tool_calls as Array<Record<string, unknown>> | undefined;
+      if (toolCalls && toolCalls.length > 0) {
+        const msgContent = msg.content as string | null;
+        if (msgContent) {
           const thinkingMsg: ChatMessage = {
             role: 'assistant',
-            content: `💭 ${msg.content}`,
+            content: `💭 ${msgContent}`,
             timestamp: Date.now(),
           };
           messages.push(thinkingMsg);
@@ -87,20 +95,28 @@ export class AiService {
         // Add assistant message with tool calls to history
         apiMessages.push({
           role: 'assistant',
-          content: msg.content,
-          tool_calls: msg.tool_calls,
+          content: msgContent,
+          tool_calls: toolCalls.map((tc: Record<string, unknown>) => ({
+            id: tc.id as string,
+            type: 'function' as const,
+            function: {
+              name: (tc.function as Record<string, unknown>).name as string,
+              arguments: (tc.function as Record<string, unknown>).arguments as string,
+            },
+          })),
         });
 
         let modified = false;
-        for (const tc of msg.tool_calls) {
-          const fn = tc.function;
-          const args = safeJsonParse(fn.arguments);
-          const result = executeHwpTool(fn.name, args, this.wasm);
+        for (const tc of toolCalls) {
+          const fn = tc.function as Record<string, unknown>;
+          const fnName = fn.name as string;
+          const fnArgs = safeJsonParse(fn.arguments as string);
+          const result = executeHwpTool(fnName, fnArgs, this.wasm);
 
           messages.push({
             role: 'tool',
-            content: `🔧 ${fn.name}: ${result}`,
-            toolCallId: tc.id,
+            content: `🔧 ${fnName}: ${result}`,
+            toolCallId: tc.id as string,
             timestamp: Date.now(),
           });
 
@@ -108,10 +124,10 @@ export class AiService {
           apiMessages.push({
             role: 'tool',
             content: result,
-            tool_call_id: tc.id,
+            tool_call_id: tc.id as string,
           });
 
-          if (MODIFYING_TOOLS.has(fn.name)) {
+          if (MODIFYING_TOOLS.has(fnName)) {
             modified = true;
           }
         }
@@ -124,10 +140,11 @@ export class AiService {
       }
 
       // Final text response
-      if (msg.content) {
+      const msgContent = (msg.content as string) || null;
+      if (msgContent) {
         const assistantMsg: ChatMessage = {
           role: 'assistant',
-          content: msg.content,
+          content: msgContent,
           timestamp: Date.now(),
         };
         messages.push(assistantMsg);
