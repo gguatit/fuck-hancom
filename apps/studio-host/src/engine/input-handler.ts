@@ -2293,6 +2293,12 @@ export class InputHandler {
   /** 전체 선택 (커맨드 시스템용) */
   performSelectAll(): void { this.handleSelectAll(); }
 
+  /** 현재 캐럿 위치에서 한 글자 삭제 (커맨드 시스템용) */
+  performDelete(): void {
+    const pos = this.cursor.getPosition();
+    this.handleDelete(pos, false);
+  }
+
   /** 서식 토글 (커맨드 시스템용) */
   toggleFormat(prop: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'emboss' | 'engrave' | 'outline' | 'superscript' | 'subscript'): void {
     this.applyToggleFormat(prop);

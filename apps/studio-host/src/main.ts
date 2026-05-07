@@ -99,8 +99,29 @@ registry.registerAll(toolCommands);
 const sbMessage = () => document.getElementById('sb-message')!;
 const sbPage = () => document.getElementById('sb-page')!;
 const sbSection = () => document.getElementById('sb-section')!;
+const sbStats = () => document.getElementById('sb-stats')!;
 const sbZoomVal = () => document.getElementById('sb-zoom-val')!;
 const ZOOM_STEP = 0.1;
+
+function updateDocumentStats(): void {
+  const el = sbStats();
+  if (wasm.pageCount === 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  let totalParagraphs = 0;
+  try {
+    for (let s = 0; s < totalSections; s++) {
+      totalParagraphs += wasm.getParagraphCount(s);
+    }
+    el.textContent = `단락: ${totalParagraphs}`;
+    el.dataset.totalChars = '-1'; // 아직 계산되지 않음
+    el.style.display = '';
+  } catch {
+    el.style.display = 'none';
+  }
+}
 
 async function initialize(): Promise<void> {
   const msg = sbMessage();
@@ -401,17 +422,23 @@ function setupZoomControls(): void {
     }
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    if (e.key === '=' || e.key === '+') {
-      e.preventDefault();
-      applyIncrementalZoom(1);
-    } else if (e.key === '-') {
-      e.preventDefault();
-      applyIncrementalZoom(-1);
-    } else if (e.key === '0') {
-      e.preventDefault();
-      vm.setZoom(1.0);
+  // 문서 통계 클릭 → 글자 수 계산
+  const statsEl = sbStats();
+  statsEl.addEventListener('click', () => {
+    if (statsEl.dataset.totalChars === '-1') {
+      let totalChars = 0;
+      try {
+        for (let s = 0; s < totalSections; s++) {
+          const paraCount = wasm.getParagraphCount(s);
+          for (let p = 0; p < paraCount; p++) {
+            totalChars += wasm.getParagraphLength(s, p);
+          }
+        }
+        statsEl.textContent = `글자: ${totalChars.toLocaleString()}  |  단락: ${statsEl.textContent!.replace('단락: ', '')}`;
+        statsEl.dataset.totalChars = String(totalChars);
+      } catch {
+        // 조용히 실패
+      }
     }
   });
 }
@@ -516,6 +543,7 @@ async function initializeDocument(docInfo: DocumentInfo, displayName: string): P
     msg.textContent = displayName;
     totalSections = docInfo.sectionCount ?? 1;
     sbSection().textContent = `구역: 1 / ${totalSections}`;
+    updateDocumentStats();
     inputHandler?.deactivate();
     canvasView?.loadDocument();
     toolbar?.setEnabled(true);
