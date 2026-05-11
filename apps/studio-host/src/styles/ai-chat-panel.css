@@ -160,8 +160,77 @@
 .aic-msg-tool .aic-msg-content {
   background: #e8f5e9;
   font-size: 11px;
-  font-family: monospace;
+  font-family: 'Consolas', monospace;
   border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  opacity: 0.8;
+  border-left: 3px solid #4caf50;
+}
+
+.aic-msg-thinking {
+  margin: 2px 0;
+}
+
+.aic-thinking-header {
+  font-size: 11px;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 2px 8px;
+  user-select: none;
+  opacity: 0.8;
+}
+
+.aic-thinking-header:hover {
+  opacity: 1;
+}
+
+.aic-thinking-body {
+  background: #fff8e1;
+  color: var(--color-text);
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #ff9800;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 4px 0;
+}
+
+[data-theme="dark"] .aic-thinking-body {
+  background: #2d2410;
+}
+
+.aic-msg-content.aic-final {
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.6;
+}
+
+.aic-msg-content.aic-final table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  width: 100%;
+  font-size: 12px;
+}
+
+.aic-msg-content.aic-final td {
+  border: 1px solid var(--color-border);
+  padding: 4px 8px;
+}
+
+.aic-msg-content.aic-final strong {
+  color: var(--color-primary);
+}
+
+.aic-msg-content.aic-final code {
+  background: #f0f0f0;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+}
+
+[data-theme="dark"] .aic-msg-content.aic-final code {
+  background: #333;
 }
 
 [data-theme="dark"] .aic-msg-tool .aic-msg-content {

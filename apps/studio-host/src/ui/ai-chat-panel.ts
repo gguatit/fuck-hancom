@@ -227,20 +227,70 @@ export class AiChatPanel {
 
   private addMessage(msg: ChatMessage): void {
     const el = document.createElement('div');
-    el.className = `aic-message aic-msg-${msg.role}`;
 
-    const roleLabel = document.createElement('div');
-    roleLabel.className = 'aic-msg-role';
-    roleLabel.textContent = msg.role === 'user' ? '나' : 'AI';
-    el.appendChild(roleLabel);
-
-    const content = document.createElement('div');
-    content.className = 'aic-msg-content';
-    content.textContent = msg.content;
-    el.appendChild(content);
+    if (msg.role === 'user') {
+      el.className = 'aic-message aic-msg-user';
+      const content = document.createElement('div');
+      content.className = 'aic-msg-content';
+      content.textContent = msg.content;
+      el.appendChild(content);
+    } else if (msg.role === 'tool') {
+      // Compact tool result
+      el.className = 'aic-message aic-msg-tool';
+      const content = document.createElement('div');
+      content.className = 'aic-msg-content';
+      content.textContent = msg.content;
+      el.appendChild(content);
+    } else if (msg.content.startsWith('💭')) {
+      // AI thinking - collapsible
+      el.className = 'aic-message aic-msg-thinking';
+      const header = document.createElement('div');
+      header.className = 'aic-thinking-header';
+      header.textContent = '🧠 생각 과정';
+      header.addEventListener('click', () => {
+        const body = el.querySelector('.aic-thinking-body') as HTMLElement;
+        if (body) body.style.display = body.style.display === 'none' ? '' : 'none';
+      });
+      el.appendChild(header);
+      const body = document.createElement('div');
+      body.className = 'aic-thinking-body';
+      body.style.display = '';
+      body.textContent = msg.content.replace('💭 ', '');
+      el.appendChild(body);
+    } else {
+      // Final AI response
+      el.className = 'aic-message aic-msg-assistant';
+      const content = document.createElement('div');
+      content.className = 'aic-msg-content aic-final';
+      content.innerHTML = this.formatMarkdown(msg.content);
+      el.appendChild(content);
+    }
 
     this.messagesEl.appendChild(el);
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+  }
+
+  private formatMarkdown(text: string): string {
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Tables: convert | separated lines to simple rows
+    html = html.replace(/^\|(.+)\|$/gm, (_, cells: string) => {
+      const tds = cells.split('|').map((c: string) => `<td>${c.trim()}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    });
+    // Wrap consecutive <tr> in <table>
+    html = html.replace(/((?:<tr>.*?<\/tr>\s*)+)/g, '<table>$1</table>');
+    // Newlines
+    html = html.replace(/\n/g, '<br>');
+    return html;
   }
 
   private addSystemMessage(text: string): void {

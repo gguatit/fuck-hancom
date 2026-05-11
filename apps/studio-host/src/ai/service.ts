@@ -32,21 +32,45 @@ function buildSystemPrompt(reasoning: string): string {
 7. ${guide}`;
 }
 
-function parseToolBlocks(text: string): { calls: ToolCall[]; remaining: string } {
+function parseToolBlocks(text: string): { calls: ToolCall[]; cleanText: string } {
   const calls: ToolCall[] = [];
-  let remaining = text;
-  const regex = /```tool\s*\n\s*(\{[\s\S]*?\})\s*\n\s*```/g;
+  let clean = text;
+
+  // Pattern 1: ```tool ... ```
+  const mdRegex = /```tool\s*\n\s*(\{[\s\S]*?\})\s*\n\s*```/g;
   let match;
-  while ((match = regex.exec(text)) !== null) {
-    remaining = remaining.replace(match[0], '').trim();
-    try {
-      const parsed = JSON.parse(match[1].trim());
-      if (parsed.name && parsed.args != null && typeof parsed.args === 'object') {
-        calls.push({ id: `c${calls.length}_${Date.now()}`, name: parsed.name, arguments: parsed.args });
-      }
-    } catch { /* skip */ }
+  while ((match = mdRegex.exec(text)) !== null) {
+    clean = clean.replace(match[0], '');
+    tryParseToolCall(match[1], calls);
   }
-  return { calls, remaining };
+
+  // Pattern 2: <tool_call>...<tool_code>...</tool_code></tool_call>
+  const xmlRegex = /<tool_call>\s*\n?\s*<tool_code>\s*\n?\s*(\{[\s\S]*?\})\s*\n?\s*<\/tool_code>\s*\n?\s*<\/tool_call>/g;
+  while ((match = xmlRegex.exec(text)) !== null) {
+    clean = clean.replace(match[0], '');
+    tryParseToolCall(match[1], calls);
+  }
+
+  // Pattern 3: <tool_call>...</tool_call> without tool_code wrapper
+  const xml2Regex = /<tool_call>\s*\n?\s*(\{[\s\S]*?\})\s*\n?\s*<\/tool_call>/g;
+  while ((match = xml2Regex.exec(text)) !== null) {
+    clean = clean.replace(match[0], '');
+    tryParseToolCall(match[1], calls);
+  }
+
+  // Remove leftover tags/whitespace
+  clean = clean.replace(/<\/?tool_(?:call|code)>/g, '').trim();
+
+  return { calls, cleanText: clean };
+}
+
+function tryParseToolCall(json: string, calls: ToolCall[]): void {
+  try {
+    const parsed = JSON.parse(json.trim());
+    if (parsed.name && parsed.args != null && typeof parsed.args === 'object') {
+      calls.push({ id: `c${calls.length}_${Date.now()}`, name: parsed.name, arguments: parsed.args });
+    }
+  } catch { /* skip */ }
 }
 
 export class AiService {
@@ -115,7 +139,7 @@ export class AiService {
 
       const responseText = (msg.content as string) || '';
       const toolCalls = msg.tool_calls as Array<Record<string, unknown>> | undefined;
-      const { calls: manualCalls, remaining } = parseToolBlocks(responseText);
+      const { calls: manualCalls, cleanText } = parseToolBlocks(responseText);
 
       const allCalls: ToolCall[] = [
         ...(toolCalls || []).map((tc: Record<string, unknown>) => {
@@ -163,7 +187,7 @@ export class AiService {
         continue;
       }
 
-      const clean = remaining || responseText;
+      const clean = cleanText || responseText;
       if (clean) {
         const am: ChatMessage = { role: 'assistant', content: clean, timestamp: Date.now() };
         messages.push(am);
