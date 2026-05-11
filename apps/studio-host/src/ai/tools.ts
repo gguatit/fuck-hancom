@@ -623,13 +623,18 @@ export function executeHwpTool(
         const cp = args.cellParagraph as number;
         const off = args.charOffset as number;
         const text = args.text as string;
-        // Verify it's actually a table
         try {
           const dims = wasm.getTableDimensions(s, p, ci);
-          if (!dims?.rowCount) return '셀 삽입 실패: 해당 위치에 표가 없습니다. insert_text를 대신 사용하세요.';
-        } catch { return '셀 삽입 실패: 표를 찾을 수 없습니다. insert_text를 대신 사용하세요.'; }
+          if (!dims?.rowCount) return '셀 삽입 실패: 표 없음. insert_text 사용.';
+        } catch { return '셀 삽입 실패: 표 없음. insert_text 사용.'; }
+        // Check if cell already has content (likely a label)
+        let existing = '';
+        try { existing = wasm.getTextInCell(s, p, ci, cellIdx, cp, 0, 100); } catch { /* */ }
+        if (existing.trim() && off === 0) {
+          return `⚠️ 경고: cellIdx=${cellIdx}에 이미 "${existing.trim()}" 내용이 있습니다. 이 셀은 라벨일 가능성이 높습니다. 빈 셀(cellIdx=${cellIdx+1} 또는 인접 빈 셀)을 찾아서 입력하세요.`;
+        }
         wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
-        return `셀 삽입 완료: s${s}p${p}ci${ci} cell${cellIdx} cp${cp}@${off} +${text.length}글자`;
+        return `✅ 셀 삽입 완료: cellIdx=${cellIdx} +${text.length}글자`;
       } catch (e) { return `셀 삽입 실패: ${e}`; }
     }
 

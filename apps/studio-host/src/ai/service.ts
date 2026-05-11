@@ -27,7 +27,8 @@ function buildSystemPrompt(reasoning: string): string {
 2. 사용자가 요청한 텍스트를 임의로 요약하거나 변형하지 말고 정확히 삽입/수정해.
 3. 수정 전 반드시 read_document_text로 현재 내용을 확인해.
 4. replace_all 할 때는 띄어쓰기, 줄바꿈, 특수문자까지 정확히 일치해야 한다. 부분 일치는 안 된다.
-5. 표 안의 내용은 insert_text_in_cell, 표 밖은 insert_text를 사용해. get_table_content로 먼저 표 구조를 확인해. 표 제목의 "호출값: section=X, paragraph=Y, controlIdx=Z"를 그대로 복사해 사용하고, 각 행 옆의 cellIdx 범위를 보고 원하는 셀의 cellIdx를 계산해 (cellParagraph는 보통 0).
+5. 표 안의 내용은 insert_text_in_cell을 사용해. get_table_content로 먼저 표 구조를 확인해. 표 제목의 "호출값: section=X, paragraph=Y, controlIdx=Z"를 그대로 복사해 사용하고, 각 행 옆의 cellIdx 범위를 보고 원하는 셀의 cellIdx를 계산해 (cellParagraph는 보통 0).
+⚡ 절대 라벨 셀에 텍스트를 추가하지 마! "성명"이라고 쓰인 셀(cellIdx=2)은 라벨이고, 그 옆 빈 셀(cellIdx=3)이 실제 입력 칸이야. 빈 셀을 찾아서 거기에 입력해. 라벨 셀의 내용을 바꾸거나 라벨 뒤에 이어 쓰지 마.
 6. ⚠️ 도구 실행 결과에 "실패"나 "오류"가 포함되면 절대 성공했다고 말하지 마. 다른 방법으로 다시 시도하거나 실패를 사용자에게 알려줘.
 7. ${guide}`;
 }
