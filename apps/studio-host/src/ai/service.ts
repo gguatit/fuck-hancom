@@ -11,10 +11,10 @@ function buildSystemPrompt(reasoning: string): string {
     ? '간결하게 응답하고 꼭 필요할 때만 도구를 호출해.'
     : '단계별로 신중하게 생각하고 모든 관련 도구를 적극 호출해.';
 
-  return `너는 한글 문서(HWP) 편집 에이전트야. 텍스트뿐 아니라 표, 머리말/꼬리말, 각주, 서식, 그림, 필드, 책갈피까지 모두 볼 수 있어.
+  return `너는 한글 문서(HWP) 편집 에이전트야. 문서의 모든 요소(텍스트, 표, 머리말/꼬리말, 각주, 서식, 그림, 필드, 책갈피)를 읽고 수정할 수 있어.
 
 [사용 가능한 도구]
-읽기: read_document_text, get_document_info, get_document_structure, get_caret_position, get_current_page_text, get_table_content, get_header_footer, get_footnotes, get_char_format, get_para_format, get_style_at, get_picture_shapes, get_fields, get_bookmarks, read_cell_text
+읽기: read_document_text, get_document_info, get_document_structure, get_caret_position, get_current_page_text, get_table_content, get_header_footer, get_footnotes, get_char_format, get_para_format, get_style_at, get_picture_shapes, get_fields, get_bookmarks, read_cell_text, find_cell_by_label
 편집: insert_text, delete_text, replace_all, search_text, split_paragraph, merge_paragraph, insert_text_in_cell, delete_text_in_cell
 
 [도구 호출법]
@@ -22,15 +22,15 @@ function buildSystemPrompt(reasoning: string): string {
 {"name": "도구명", "args": {...}}
 \`\`\`
 
-[정확도 핵심 규칙]
+[핵심 규칙]
 1. 항상 한국어로 응답해.
 2. 사용자가 요청한 텍스트를 임의로 요약하거나 변형하지 말고 정확히 삽입/수정해.
-3. 수정 전 반드시 read_document_text로 현재 내용을 확인해.
-4. replace_all 할 때는 띄어쓰기, 줄바꿈, 특수문자까지 정확히 일치해야 한다. 부분 일치는 안 된다.
-5. 표 안의 내용은 insert_text_in_cell을 사용해. get_table_content로 먼저 표 구조를 확인해. 표 제목의 "호출값: section=X, paragraph=Y, controlIdx=Z"를 그대로 복사해 사용하고, 각 행 옆의 cellIdx 범위를 보고 원하는 셀의 cellIdx를 계산해 (cellParagraph는 보통 0).
-⚡ 절대 라벨 셀에 텍스트를 추가하지 마! "성명"이라고 쓰인 셀(cellIdx=2)은 라벨이고, 그 옆 빈 셀(cellIdx=3)이 실제 입력 칸이야. 빈 셀을 찾아서 거기에 입력해. 라벨 셀의 내용을 바꾸거나 라벨 뒤에 이어 쓰지 마.
-6. ⚠️ 도구 실행 결과에 "실패"나 "오류"가 포함되면 절대 성공했다고 말하지 마. 다른 방법으로 다시 시도하거나 실패를 사용자에게 알려줘.
-7. ${guide}`;
+3. 수정 전 반드시 read_document_text나 get_table_content로 현재 내용을 확인해.
+4. replace_all 할 때는 띄어쓰기, 줄바꿈, 특수문자까지 정확히 일치해야 한다.
+5. 표 셀에 쓸 때는 반드시 find_cell_by_label로 먼저 정확한 셀 위치를 찾아. 라벨명을 검색하면 옆 빈칸의 정확한 cellIdx를 알려줘.
+6. 표 밖 일반 문단에는 insert_text를, 표 셀 안에는 insert_text_in_cell을 사용해.
+7. 도구 실행 결과에 "실패"나 "오류"가 포함되면 절대 성공했다고 말하지 마. 다른 방법으로 다시 시도하거나 실패를 솔직히 알려줘.
+8. ${guide}`;
 }
 
 function parseToolBlocks(text: string): { calls: ToolCall[]; cleanText: string } {
@@ -72,6 +72,17 @@ function tryParseToolCall(json: string, calls: ToolCall[]): void {
       calls.push({ id: `c${calls.length}_${Date.now()}`, name: parsed.name, arguments: parsed.args });
     }
   } catch { /* skip */ }
+}
+
+function getReasoningParams(reasoning: string): Record<string, number> {
+  switch (reasoning) {
+    case 'off':     return { temperature: 0.1, top_p: 0.9 };
+    case 'low':     return { temperature: 0.3, top_p: 0.9 };
+    case 'medium':  return { temperature: 0.5, top_p: 0.95 };
+    case 'high':    return { temperature: 0.7, top_p: 0.95 };
+    case 'xhigh':   return { temperature: 0.9, top_p: 0.98 };
+    default:        return { temperature: 0.5, top_p: 0.95 };
+  }
 }
 
 export class AiService {
@@ -130,6 +141,7 @@ export class AiService {
       const response = await this.client.chat({
         model: this.settings.modelId,
         messages: apiMessages,
+        ...getReasoningParams(this.settings.reasoning ?? 'medium'),
       });
 
       const choices = response.choices as Array<Record<string, unknown>> | undefined;
@@ -169,16 +181,23 @@ export class AiService {
         this.conversationHistory.push({ role: 'assistant', content: responseText });
 
         let modified = false;
+        let hasFailure = false;
         const toolResults: string[] = [];
         for (const tc of uniqueCalls) {
           const result = executeHwpTool(tc.name, tc.arguments, this.wasm);
           toolResults.push(`[${tc.name}] ${result}`);
           messages.push({ role: 'tool', content: `🔧 ${result}`, toolCallId: tc.id, timestamp: Date.now() });
           if (MODIFYING_TOOLS.has(tc.name)) modified = true;
+          if (result.includes('실패') || result.includes('오류')) hasFailure = true;
           await new Promise((r) => setTimeout(r, 0));
         }
 
-        const toolResultMsg = `[도구 결과]\n${toolResults.join('\n')}\n\n결과를 바탕으로 계속 진행해. 더 이상 도구가 필요 없으면 최종 응답만 해.`;
+        let toolResultMsg = `[도구 결과]\n${toolResults.join('\n')}`;
+        if (hasFailure) {
+          toolResultMsg += '\n\n일부 도구가 실패했습니다. 실패 원인을 분석하고 다른 방법(다른 도구, 다른 인자값)으로 다시 시도하거나, 실패 사실을 사용자에게 솔직히 알려주세요.';
+        } else {
+          toolResultMsg += '\n\n결과를 바탕으로 계속 진행해. 더 이상 도구가 필요 없으면 최종 응답만 해.';
+        }
         apiMessages.push({ role: 'user', content: toolResultMsg });
 
         if (modified) {

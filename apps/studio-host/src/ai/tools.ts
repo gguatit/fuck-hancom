@@ -208,6 +208,20 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
         required: ['section', 'paragraph', 'controlIdx', 'cellIdx', 'cellParagraph'],
       },
     },
+    {
+      name: 'find_cell_by_label',
+      description: '표 안에서 라벨명(예: "성명", "연락처", "이메일")을 검색하여, 해당 라벨이 있는 행/열과 그 옆 빈 입력 셀의 정확한 cellIdx를 반환합니다. 라벨명은 부분 일치합니다.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer', description: '표가 있는 섹션' },
+          paragraph: { type: 'integer', description: '표가 있는 문단' },
+          controlIdx: { type: 'integer', description: '표 컨트롤 인덱스 (보통 0)' },
+          label: { type: 'string', description: '찾을 라벨명 (예: "성명", "연락처", "이메일")' },
+        },
+        required: ['section', 'paragraph', 'controlIdx', 'label'],
+      },
+    },
   ];
 }
 
@@ -667,6 +681,63 @@ export function executeHwpTool(
       const len = wasm.getCellParagraphLength(s, p, ci, cellIdx, cp);
       const text = wasm.getTextInCell(s, p, ci, cellIdx, cp, 0, Math.min(len, 500));
       return text || '(빈 셀)';
+    }
+
+    case 'find_cell_by_label': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const ci = args.controlIdx as number;
+      const label = (args.label as string).toLowerCase();
+      try {
+        const dims = wasm.getTableDimensions(s, p, ci);
+        if (!dims?.rowCount) return '표를 찾을 수 없습니다.';
+        const rows = dims.rowCount, cols = dims.colCount;
+
+        const found: string[] = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const idx = r * cols + c;
+            try {
+              let txt = '';
+              const cpc = wasm.getCellParagraphCount(s, p, ci, idx);
+              for (let cp = 0; cp < cpc; cp++) {
+                const t = wasm.getTextInCell(s, p, ci, idx, cp, 0, 200);
+                if (t) txt += t;
+              }
+              if (txt.toLowerCase().includes(label)) {
+                // Find adjacent empty cells
+                const adjacent: { cellIdx: number; row: number; col: number; content: string }[] = [];
+                for (const [dr, dc] of [[0, 1], [1, 0], [0, -1], [-1, 0], [0, 2], [0, -2]]) {
+                  const ar = r + dr;
+                  const ac = c + dc;
+                  if (ar >= 0 && ar < rows && ac >= 0 && ac < cols) {
+                    const ai = ar * cols + ac;
+                    try {
+                      let atxt = '';
+                      const apc = wasm.getCellParagraphCount(s, p, ci, ai);
+                      for (let cp = 0; cp < apc; cp++) {
+                        const t = wasm.getTextInCell(s, p, ci, ai, cp, 0, 200);
+                        if (t) atxt += t;
+                      }
+                      adjacent.push({ cellIdx: ai, row: ar, col: ac, content: atxt.trim() || '(빈칸)' });
+                    } catch { /* */ }
+                  }
+                }
+                const empty = adjacent.filter((a) => !a.content || a.content === '(빈칸)');
+                const nonEmpty = adjacent.filter((a) => a.content && a.content !== '(빈칸)');
+                found.push(
+                  `[${txt.trim()}] 위치: 행${r}열${c} (cellIdx=${idx})` +
+                  (empty.length > 0 ? `\n  입력 가능한 빈칸: ${empty.map((a) => `cellIdx=${a.cellIdx} (행${a.row}열${a.col})`).join(', ')}` : '') +
+                  (nonEmpty.length > 0 ? `\n  주변 다른 내용: ${nonEmpty.map((a) => `cellIdx=${a.cellIdx}: "${a.content}"`).join(', ')}` : '')
+                );
+              }
+            } catch { /* */ }
+          }
+        }
+        return found.length > 0
+          ? `검색 결과:\n${found.join('\n\n')}\n\n이 중에서 입력할 빈칸 cellIdx를 선택해 insert_text_in_cell을 호출하세요.`
+          : `"${args.label}" 라벨을 찾을 수 없습니다. get_table_content로 전체 표를 먼저 확인하세요.`;
+      } catch (e) { return `검색 실패: ${e}`; }
     }
 
     default:
