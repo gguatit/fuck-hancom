@@ -335,37 +335,39 @@ export function executeHwpTool(
         let pc = 0;
         try { pc = wasm.getParagraphCount(s); } catch { break; }
         for (let p = 0; p < pc; p++) {
-          try {
-            const dims = wasm.getTableDimensions(s, p, 0);
-            if (!dims?.rowCount) continue;
-            tableIdx++;
-            const rows = dims.rowCount, cols = dims.colCount;
-            out.push(`[표${tableIdx}] s${s}p${p} ${rows}행x${cols}열`);
+          for (let ci = 0; ci < 5; ci++) {
+            try {
+              const dims = wasm.getTableDimensions(s, p, ci);
+              if (!dims?.rowCount) continue;
+              tableIdx++;
+              const rows = dims.rowCount, cols = dims.colCount;
+              out.push(`[표${tableIdx}] ${rows}행x${cols}열 (호출값: section=${s}, paragraph=${p}, controlIdx=${ci})`);
             for (let r = 0; r < Math.min(rows, 20); r++) {
               const rowTexts: string[] = [];
               for (let c = 0; c < cols; c++) {
+                const cellIdx = r * cols + c;
                 try {
-                  const cellIdx = r * cols + c;
                   let ct = '';
                   let cellParas = 0;
-                  try { cellParas = wasm.getCellParagraphCount(s, p, 0, cellIdx); } catch { /* */ }
+                  try { cellParas = wasm.getCellParagraphCount(s, p, ci, cellIdx); } catch { /* */ }
                   for (let cp = 0; cp < cellParas; cp++) {
-                    const txt = wasm.getTextInCell(s, p, 0, cellIdx, cp, 0, 500);
+                    const txt = wasm.getTextInCell(s, p, ci, cellIdx, cp, 0, 500);
                     if (txt) ct += txt;
                   }
-                  rowTexts.push(ct || '(빈셀)');
+                  rowTexts.push(ct || '-');
                 } catch { rowTexts.push('?'); }
               }
-              out.push(`  행${r}: ${rowTexts.join(' | ')}`);
+              out.push(`  행${r} (cellIdx=${r*cols}~${r*cols+cols-1}): ${rowTexts.join(' | ')}`);
             }
             if (rows > 20) out.push(`  ...(${rows - 20}행 생략)`);
           } catch { /* */ }
         }
       }
-      return out.join('\n') || '표가 없습니다.';
     }
+    return out.join('\n') || '표가 없습니다.';
+  }
 
-    case 'get_header_footer': {
+  case 'get_header_footer': {
       const out: string[] = [];
       let sections = 1;
       try { sections = wasm.getParagraphCount(-1); } catch { /* */ }

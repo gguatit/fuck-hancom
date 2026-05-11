@@ -49,3 +49,10 @@ coverage/
 # 환경변수 (민감 정보)
 .env
 .env.docker
+
+# OS generated
+Desktop.ini
+
+# AI settings (contains API keys)
+apps/desktop/src-tauri/target/
+*.nsi

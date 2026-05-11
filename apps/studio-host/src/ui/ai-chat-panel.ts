@@ -41,8 +41,8 @@ export class AiChatPanel {
     this.container.appendChild(this.panelInner);
 
     this.build();
-    this.show();
-    this.tryRestoreSettings();
+    // Load saved settings first, then show
+    this.tryRestoreSettings().then(() => this.show());
   }
 
   private build(): void {
