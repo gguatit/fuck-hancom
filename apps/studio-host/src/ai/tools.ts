@@ -630,8 +630,10 @@ export function executeHwpTool(
         // Check if cell already has content (likely a label)
         let existing = '';
         try { existing = wasm.getTextInCell(s, p, ci, cellIdx, cp, 0, 100); } catch { /* */ }
-        if (existing.trim() && off === 0) {
-          return `⚠️ 경고: cellIdx=${cellIdx}에 이미 "${existing.trim()}" 내용이 있습니다. 이 셀은 라벨일 가능성이 높습니다. 빈 셀(cellIdx=${cellIdx+1} 또는 인접 빈 셀)을 찾아서 입력하세요.`;
+        if (existing.trim() && off === 0 && !text.startsWith(existing.trim())) {
+          // Cell has content - warn but still allow
+          wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
+          return `⚠️ cellIdx=${cellIdx} 기존내용 "${existing.trim().substring(0, 30)}" 위에 덮어쓰기. 의도적이면 문제없음.`;
         }
         wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
         return `✅ 셀 삽입 완료: cellIdx=${cellIdx} +${text.length}글자`;
