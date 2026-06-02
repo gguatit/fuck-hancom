@@ -467,7 +467,7 @@ impl DocumentSession {
             self.page_count = core.page_count();
             self.core = Some(core);
         }
-        Ok(self.core.as_mut().ok_or_else(|| "core must be loaded".to_string())?)
+        self.core.as_mut().ok_or_else(|| "core must be loaded".to_string())
     }
 
     fn check_revision(&self, expected_revision: Option<u64>) -> Result<(), String> {

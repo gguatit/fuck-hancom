@@ -4,7 +4,7 @@ import { AiClient } from './client';
 import { executeHwpTool } from './tools';
 import type { AiSettings, ChatMessage, ToolCall } from './types';
 
-const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph', 'insert_text_in_cell', 'delete_text_in_cell']);
+const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph', 'insert_text_in_cell', 'delete_text_in_cell', 'set_char_format', 'set_para_format', 'apply_style', 'set_page_margins', 'create_table']);
 
 function buildSystemPrompt(reasoning: string): string {
   const guide = reasoning === 'off'
@@ -14,8 +14,10 @@ function buildSystemPrompt(reasoning: string): string {
   return `너는 한글 문서(HWP) 편집 에이전트야. 문서의 모든 요소(텍스트, 표, 머리말/꼬리말, 각주, 서식, 그림, 필드, 책갈피)를 읽고 수정할 수 있어.
 
 [사용 가능한 도구]
-읽기: read_document_text, get_document_info, get_document_structure, get_caret_position, get_current_page_text, get_table_content, get_header_footer, get_footnotes, get_char_format, get_para_format, get_style_at, get_picture_shapes, get_fields, get_bookmarks, read_cell_text, find_cell_by_label
+읽기: read_document_text, get_document_info, get_document_structure, get_caret_position, get_current_page_text, get_table_content, get_header_footer, get_footnotes, get_char_format, get_para_format, get_style_at, get_picture_shapes, get_fields, get_bookmarks, read_cell_text, find_cell_by_label, list_styles
 편집: insert_text, delete_text, replace_all, search_text, split_paragraph, merge_paragraph, insert_text_in_cell, delete_text_in_cell
+서식: set_char_format(굵게/기울임/밑줄/글자크기/글꼴/글자색/음영색), set_para_format(정렬/줄간격/여백/들여쓰기), apply_style(스타일적용), set_page_margins(좁은여백)
+표: create_table(행×열 표 생성. insert_text_in_cell/read_cell_text와 함께 사용)
 
 [도구 호출법]
 \`\`\`tool
@@ -106,6 +108,8 @@ export class AiService {
   }
 
   get isConfigured(): boolean { return this.settings !== null; }
+
+  getSettings(): AiSettings | null { return this.settings; }
 
   async loadStoredSettings(): Promise<AiSettings | null> {
     const saved = await this.client.loadStoredSettings();

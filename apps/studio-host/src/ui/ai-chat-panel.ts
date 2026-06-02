@@ -152,7 +152,8 @@ export class AiChatPanel {
   }
 
   private async openSettings(): Promise<void> {
-    const settings = await this.settingsDialog.show();
+    const current = this.service.getSettings();
+    const settings = await this.settingsDialog.show(current ?? undefined);
     if (settings) {
       try {
         this.statusEl.textContent = '⏳ 설정 중...';

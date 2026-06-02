@@ -6,6 +6,10 @@ Cargo.lock
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 
+# Local Rust toolchain (installed inside project, ~2GB+)
+.cargo/
+.rustup/
+
 # JavaScript
 node_modules/
 apps/*/node_modules/
@@ -53,6 +57,5 @@ coverage/
 # OS generated
 Desktop.ini
 
-# AI settings (contains API keys)
-apps/desktop/src-tauri/target/
+# NSIS installer scripts
 *.nsi

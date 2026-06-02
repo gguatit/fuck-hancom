@@ -222,6 +222,99 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
         required: ['section', 'paragraph', 'controlIdx', 'label'],
       },
     },
+    {
+      name: 'set_char_format',
+      description: '글자 서식 설정. 굵게/기울임/밑줄/취소선/글자크기/글꼴/글자색/음영색 등을 지정.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          startOffset: { type: 'integer', description: '적용 시작 (전체면 0)' },
+          endOffset: { type: 'integer', description: '적용 끝 (전체면 -1)' },
+          bold: { type: 'boolean', description: '굵게' },
+          italic: { type: 'boolean', description: '기울임' },
+          underline: { type: 'boolean', description: '밑줄' },
+          strikethrough: { type: 'boolean', description: '취소선' },
+          baseSize: { type: 'number', description: '글자 크기 (pt*100. 12pt=1200)' },
+          fontId: { type: 'number', description: '글꼴 ID. findOrCreateFontId로 얻음' },
+          textColor: { type: 'integer', description: '글자색 ARGB (검정=4278190080)' },
+          shadeColor: { type: 'integer', description: '음영색 ARGB (노랑=4294967040)' },
+        },
+        required: ['section', 'paragraph', 'startOffset', 'endOffset'],
+      },
+    },
+    {
+      name: 'set_para_format',
+      description: '문단 서식 설정. 정렬/줄간격/여백/들여쓰기 지정.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          alignment: { type: 'string', enum: ['left', 'right', 'center', 'justify', 'distribute', 'divide'], description: '정렬 방식' },
+          lineSpacing: { type: 'number', description: '줄간격 (%. 130=130%)' },
+          lineSpacingType: { type: 'integer', description: '줄간격 종류 (0=% 1=pt 2=fixed 3=minimum)' },
+          marginLeft: { type: 'number', description: '왼쪽 여백 (HWPUNIT)' },
+          marginRight: { type: 'number', description: '오른쪽 여백 (HWPUNIT)' },
+          indent: { type: 'number', description: '들여쓰기 (양수=들여, 음수=내어)' },
+          spacingBefore: { type: 'number', description: '문단 앞 여백 (HWPUNIT)' },
+          spacingAfter: { type: 'number', description: '문단 뒤 여백 (HWPUNIT)' },
+        },
+        required: ['section', 'paragraph'],
+      },
+    },
+    {
+      name: 'apply_style',
+      description: '문단에 스타일 적용 (예: 제목, 본문). list_styles로 사용 가능한 스타일 먼저 확인.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          styleId: { type: 'integer', description: '스타일 ID (list_styles 결과에서 확인)' },
+        },
+        required: ['section', 'paragraph', 'styleId'],
+      },
+    },
+    {
+      name: 'list_styles',
+      description: '문서에서 사용 가능한 모든 스타일 목록을 반환합니다.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
+      name: 'set_page_margins',
+      description: '페이지 여백 설정. 이력서 등 좁은 여백이 필요할 때 사용.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer', description: '섹션 인덱스 (보통 0)' },
+          width: { type: 'number', description: '용지 너비 HWPUNIT (A4=59528)' },
+          height: { type: 'number', description: '용지 높이 HWPUNIT (A4=84188)' },
+          marginLeft: { type: 'number', description: '왼쪽 여백 (좁게=4252, 기본=8504)' },
+          marginRight: { type: 'number', description: '오른쪽 여백' },
+          marginTop: { type: 'number', description: '위쪽 여백' },
+          marginBottom: { type: 'number', description: '아래쪽 여백' },
+          landscape: { type: 'boolean', description: '가로 방향' },
+        },
+        required: ['section', 'marginLeft', 'marginRight', 'marginTop', 'marginBottom'],
+      },
+    },
+    {
+      name: 'create_table',
+      description: '표 생성. 행×열 표를 만들고 paraIdx/controlIdx 반환.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          charOffset: { type: 'integer', description: '표를 넣을 위치 (0=문단 처음)' },
+          rows: { type: 'integer', description: '행 수' },
+          cols: { type: 'integer', description: '열 수' },
+        },
+        required: ['section', 'paragraph', 'charOffset', 'rows', 'cols'],
+      },
+    },
   ];
 }
 
@@ -499,74 +592,6 @@ export function executeHwpTool(
       } catch { return '책갈피 읽기 실패'; }
     }
 
-    case 'get_para_format': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      try {
-        const pp = wasm.getParaPropertiesAt(s, p);
-        return [
-          `정렬: ${pp.alignment ?? '?'}`,
-          `줄간격: ${pp.lineSpacing ?? '?'} 전여백:${pp.spacingBefore ?? 0} 후여백:${pp.spacingAfter ?? 0}`,
-          `왼여백:${pp.marginLeft ?? 0} 오른여백:${pp.marginRight ?? 0} 들여쓰기:${pp.indent ?? 0}`,
-        ].join('\n');
-      } catch { return '문단 서식 읽기 실패'; }
-    }
-
-    case 'get_style_at': {
-      const s = args.section as number;
-      const p = args.paragraph as number;
-      try {
-        const st = wasm.getStyleAt(s, p);
-        return `스타일: ${st.name} (id:${st.id})`;
-      } catch { return '스타일 읽기 실패'; }
-    }
-
-    case 'get_picture_shapes': {
-      const out: string[] = [];
-      let total = 0;
-      for (let pg = 0; pg < wasm.pageCount; pg++) {
-        try {
-          const layout = wasm.getPageControlLayout(pg);
-          if (layout?.controls?.length) {
-            for (const ctrl of layout.controls) {
-              total++;
-              out.push(`[${ctrl.type || '개체'}] p${pg} s${ctrl.secIdx}p${ctrl.paraIdx}`);
-              if (out.length > 50) break;
-            }
-          }
-        } catch { /* */ }
-        if (out.length > 50) { out.push('...(50개 초과 생략)'); break; }
-      }
-      return out.join('\n') || `그림/개체: ${total > 0 ? `${total}개` : '없음'}`;
-    }
-
-    case 'get_fields': {
-      try {
-        const fields = wasm.getFieldList();
-        if (!fields?.length) return '필드 없음';
-        const out: string[] = [];
-        for (const f of fields) {
-          let v = '';
-          try {
-            const fv = wasm.getFieldValue(f.fieldId);
-            if (fv?.ok) v = `="${fv.value}"`;
-          } catch { /* */ }
-          out.push(`[id:${f.fieldId}] ${f.guide || f.name || '?'} ${v}`);
-        }
-        return `${fields.length}개 필드:\n${out.join('\n')}`;
-      } catch { return '필드 읽기 실패'; }
-    }
-
-    case 'get_bookmarks': {
-      try {
-        const bms = wasm.getBookmarks();
-        if (!bms?.length) return '책갈피 없음';
-        return bms.map((b) =>
-          `${b.name}: s${b.sec}p${b.para}@${b.charPos}`
-        ).join('\n');
-      } catch { return '책갈피 읽기 실패'; }
-    }
-
     // ── 편집 ──
     case 'insert_text': {
       try {
@@ -738,6 +763,104 @@ export function executeHwpTool(
           ? `검색 결과:\n${found.join('\n\n')}\n\n이 중에서 입력할 빈칸 cellIdx를 선택해 insert_text_in_cell을 호출하세요.`
           : `"${args.label}" 라벨을 찾을 수 없습니다. get_table_content로 전체 표를 먼저 확인하세요.`;
       } catch (e) { return `검색 실패: ${e}`; }
+    }
+
+    case 'set_char_format': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const so = args.startOffset as number;
+      const eo = args.endOffset as number;
+      try {
+        const props: Record<string, unknown> = {};
+        if (args.bold !== undefined) props.bold = args.bold;
+        if (args.italic !== undefined) props.italic = args.italic;
+        if (args.underline !== undefined) props.underline = args.underline;
+        if (args.strikethrough !== undefined) props.strikethrough = args.strikethrough;
+        if (args.baseSize !== undefined) props.baseSize = args.baseSize;
+        if (args.fontId !== undefined) props.fontId = args.fontId;
+        if (args.textColor !== undefined) props.textColor = args.textColor;
+        if (args.shadeColor !== undefined) props.shadeColor = args.shadeColor;
+        wasm.applyCharFormat(s, p, so, eo, JSON.stringify(props));
+        const applied = Object.keys(props).join(', ');
+        return `글자 서식 적용 완료: s${s}p${p} [${so}~${eo}] ${applied}`;
+      } catch (e) { return `글자 서식 적용 실패: ${e}`; }
+    }
+
+    case 'set_para_format': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      try {
+        const props: Record<string, unknown> = {};
+        if (args.alignment !== undefined) props.alignment = args.alignment;
+        if (args.lineSpacing !== undefined) props.lineSpacing = args.lineSpacing;
+        if (args.lineSpacingType !== undefined) props.lineSpacingType = args.lineSpacingType;
+        if (args.marginLeft !== undefined) props.marginLeft = args.marginLeft;
+        if (args.marginRight !== undefined) props.marginRight = args.marginRight;
+        if (args.indent !== undefined) props.indent = args.indent;
+        if (args.spacingBefore !== undefined) props.spacingBefore = args.spacingBefore;
+        if (args.spacingAfter !== undefined) props.spacingAfter = args.spacingAfter;
+        wasm.applyParaFormat(s, p, JSON.stringify(props));
+        const applied = Object.keys(props).join(', ');
+        return `문단 서식 적용 완료: s${s}p${p} ${applied}`;
+      } catch (e) { return `문단 서식 적용 실패: ${e}`; }
+    }
+
+    case 'apply_style': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const sid = args.styleId as number;
+      try {
+        const r = wasm.applyStyle(s, p, sid);
+        return r.ok ? `스타일 적용 완료: s${s}p${p} styleId=${sid}` : `스타일 적용 실패: styleId=${sid}`;
+      } catch (e) { return `스타일 적용 실패: ${e}`; }
+    }
+
+    case 'list_styles': {
+      try {
+        const styles = wasm.getStyleList();
+        if (!styles?.length) return '사용 가능한 스타일이 없습니다.';
+        return styles.map((st) =>
+          `[${st.type === 1 ? '문단' : '글자'}] id=${st.id} "${st.name}"${st.englishName ? ` (${st.englishName})` : ''}`
+        ).join('\n');
+      } catch (e) { return `스타일 목록 읽기 실패: ${e}`; }
+    }
+
+    case 'set_page_margins': {
+      const s = args.section as number;
+      try {
+        const current = wasm.getPageDef(s);
+        const pageDef = {
+          width: args.width as number ?? current.width,
+          height: args.height as number ?? current.height,
+          marginLeft: args.marginLeft as number,
+          marginRight: args.marginRight as number,
+          marginTop: args.marginTop as number,
+          marginBottom: args.marginBottom as number,
+          marginHeader: current.marginHeader,
+          marginFooter: current.marginFooter,
+          marginGutter: current.marginGutter,
+          landscape: (args.landscape as boolean) ?? current.landscape,
+          binding: current.binding,
+        };
+        const r = wasm.setPageDef(s, pageDef);
+        return r.ok
+          ? `페이지 여백 적용 완료: 섹션${s} L=${args.marginLeft} R=${args.marginRight} T=${args.marginTop} B=${args.marginBottom} (페이지=${r.pageCount})`
+          : '페이지 여백 적용 실패';
+      } catch (e) { return `페이지 여백 적용 실패: ${e}`; }
+    }
+
+    case 'create_table': {
+      const s = args.section as number;
+      const p = args.paragraph as number;
+      const off = args.charOffset as number;
+      const rows = args.rows as number;
+      const cols = args.cols as number;
+      try {
+        const r = wasm.createTable(s, p, off, rows, cols);
+        return r.ok
+          ? `표 생성 완료: ${rows}행×${cols}열 (section=${s}, paraIdx=${r.paraIdx ?? p}, controlIdx=${r.controlIdx ?? 0})`
+          : '표 생성 실패';
+      } catch (e) { return `표 생성 실패: ${e}`; }
     }
 
     default:

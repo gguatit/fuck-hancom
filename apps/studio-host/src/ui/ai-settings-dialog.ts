@@ -63,11 +63,11 @@ export class AiSettingsDialog {
     });
   }
 
-  async show(): Promise<AiSettings | null> {
+  async show(current?: AiSettings): Promise<AiSettings | null> {
     this.overlay.style.display = '';
     return new Promise((resolve) => {
       this.resolve = resolve;
-      this.buildContent();
+      this.buildContent(current);
     });
   }
 
@@ -75,7 +75,7 @@ export class AiSettingsDialog {
     this.overlay.style.display = 'none';
   }
 
-  private async buildContent(): Promise<void> {
+  private async buildContent(current?: AiSettings): Promise<void> {
     this.dialog.innerHTML = '';
 
     const title = document.createElement('div');
@@ -110,6 +110,7 @@ export class AiSettingsDialog {
     zenOpt.textContent = 'open code Zen (종량제)';
     providerSelect.appendChild(goOpt);
     providerSelect.appendChild(zenOpt);
+    if (current) providerSelect.value = current.provider;
     providerRow.appendChild(providerSelect);
 
     const keyRow = document.createElement('div');
@@ -124,6 +125,7 @@ export class AiSettingsDialog {
     keyInput.type = 'password';
     keyInput.className = 'aic-input';
     keyInput.placeholder = 'sk-... 또는 oc-... 형식의 API 키';
+    if (current) keyInput.value = current.apiKey;
     keyRow.appendChild(keyInput);
 
     const modelRow = document.createElement('div');
@@ -136,7 +138,15 @@ export class AiSettingsDialog {
 
     const modelSelect = document.createElement('select');
     modelSelect.className = 'aic-select';
-    modelSelect.innerHTML = '<option value="">제공자와 API 키 입력 후 모델 로드를 누르세요</option>';
+    if (current) {
+      const opt = document.createElement('option');
+      opt.value = current.modelId;
+      opt.textContent = current.modelId;
+      opt.selected = true;
+      modelSelect.appendChild(opt);
+    } else {
+      modelSelect.innerHTML = '<option value="">제공자와 API 키 입력 후 모델 로드를 누르세요</option>';
+    }
     modelRow.appendChild(modelSelect);
 
     const loadModelsBtn = document.createElement('button');
@@ -160,6 +170,7 @@ export class AiSettingsDialog {
       opt.textContent = label;
       reasoningSelect.appendChild(opt);
     }
+    if (current) reasoningSelect.value = current.reasoning ?? 'medium';
     reasoningRow.appendChild(reasoningSelect);
 
     const statusEl = document.createElement('div');

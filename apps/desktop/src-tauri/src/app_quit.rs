@@ -12,6 +12,7 @@ pub struct AppQuitState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub enum QuitAdvance {
     Idle,
     Next(String),
@@ -32,6 +33,7 @@ impl AppQuitState {
         self.pending_window_labels.clear();
     }
 
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub fn advance_after_close(&mut self, closed_label: &str) -> QuitAdvance {
         if self.pending_window_labels.is_empty() {
             return QuitAdvance::Idle;
@@ -82,6 +84,7 @@ pub(crate) fn cancel_app_quit_request(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub(crate) fn handle_run_event(app: &AppHandle, event: &RunEvent) -> Result<(), String> {
     match event {
         RunEvent::ExitRequested { code, api, .. } if code.is_none() => {
@@ -97,6 +100,7 @@ pub(crate) fn handle_run_event(app: &AppHandle, event: &RunEvent) -> Result<(), 
     }
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn handle_quit_window_destroyed(app: &AppHandle, label: &str) -> Result<(), String> {
     let advance = {
         let state = app.state::<AppState>();
