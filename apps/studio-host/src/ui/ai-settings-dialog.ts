@@ -232,7 +232,7 @@ export class AiSettingsDialog {
           modelSelect.appendChild(opt);
         }
 
-        statusEl.textContent = `✅ ${models.length}개 모델 로드 완료`;
+        statusEl.textContent = `${models.length}개 모델 로드 완료`;
         statusEl.className = 'aic-status aic-status-ok';
       } catch (err) {
         statusEl.textContent = `실패: ${err instanceof Error ? err.message : String(err)}`;

@@ -40,6 +40,7 @@ const overrideIds = [
   'ai/tools',
   'ai/types',
   'ai/client',
+  'ai/screenshot',
   'command/commands/ai',
   'ui/ai-chat-panel',
   'ui/ai-settings-dialog',

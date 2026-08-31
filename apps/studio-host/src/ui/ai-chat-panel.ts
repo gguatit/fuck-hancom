@@ -1,9 +1,18 @@
-import { AiService } from '@/ai/service';
+import { AiService, THINKING_PREFIX, isVisionModel } from '@/ai/service';
 import type { ChatMessage } from '@/ai/types';
 import { AiSettingsDialog } from './ai-settings-dialog';
 import { AiClient } from '@/ai/client';
+import { captureVisiblePages } from '@/ai/screenshot';
 import type { WasmBridge } from '@/core/wasm-bridge';
 import type { EventBus } from '@/core/event-bus';
+
+const ICON_GEAR = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.98 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.98a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03z"/></svg>';
+const ICON_CLOSE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg>';
+const ICON_CAMERA = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg>';
+
+function statusDotSvg(color: string): string {
+  return `<svg viewBox="0 0 8 8" width="8" height="8" style="vertical-align:middle"><circle cx="4" cy="4" r="3.4" fill="${color}"/></svg> `;
+}
 
 export class AiChatPanel {
   private container: HTMLElement;
@@ -16,7 +25,9 @@ export class AiChatPanel {
   private inputEl!: HTMLTextAreaElement;
   private sendBtn!: HTMLButtonElement;
   private settingsBtn!: HTMLButtonElement;
+  private cameraBtn!: HTMLButtonElement;
   private statusEl!: HTMLElement;
+  private pendingImages: string[] = [];
   private loading = false;
   private wasm: WasmBridge;
   private eventBus: EventBus;
@@ -64,13 +75,13 @@ export class AiChatPanel {
     this.settingsBtn = document.createElement('button');
     this.settingsBtn.className = 'aic-icon-btn';
     this.settingsBtn.title = 'AI 설정 (API 키, 모델)';
-    this.settingsBtn.innerHTML = '&#9881;';
+    this.settingsBtn.innerHTML = ICON_GEAR;
     header.appendChild(this.settingsBtn);
 
     const closeBtn = document.createElement('button');
     closeBtn.className = 'aic-icon-btn aic-close-btn';
     closeBtn.title = 'AI 패널 닫기';
-    closeBtn.innerHTML = '&#10005;';
+    closeBtn.innerHTML = ICON_CLOSE;
     header.appendChild(closeBtn);
 
     this.panelInner.appendChild(header);
@@ -91,6 +102,12 @@ export class AiChatPanel {
     const btnRow = document.createElement('div');
     btnRow.className = 'aic-btn-row';
 
+    this.cameraBtn = document.createElement('button');
+    this.cameraBtn.className = 'aic-btn aic-btn-camera';
+    this.cameraBtn.title = '화면 캡처 첨부 (다음 요청 1회)';
+    this.cameraBtn.innerHTML = ICON_CAMERA;
+    btnRow.appendChild(this.cameraBtn);
+
     this.sendBtn = document.createElement('button');
     this.sendBtn.className = 'aic-btn aic-btn-primary';
     this.sendBtn.textContent = '전송';
@@ -102,6 +119,7 @@ export class AiChatPanel {
 
     closeBtn.addEventListener('click', () => this.hide());
     this.settingsBtn.addEventListener('click', () => this.openSettings());
+    this.cameraBtn.addEventListener('click', () => this.toggleCapture());
     this.sendBtn.addEventListener('click', () => this.send());
 
     this.inputEl.addEventListener('keydown', (e) => {
@@ -114,19 +132,44 @@ export class AiChatPanel {
     this.checkServer();
   }
 
+  private setStatus(text: string, color?: string): void {
+    this.statusEl.innerHTML = color ? statusDotSvg(color) : '';
+    this.statusEl.appendChild(document.createTextNode(text));
+    this.statusEl.style.color = color ?? '';
+  }
+
+  private toggleCapture(): void {
+    const settings = this.service.getSettings();
+    if (!settings || !isVisionModel(settings.modelId)) {
+      this.addSystemMessage('화면 캡처는 비전 모델(예: deepseek-v4-flash-vision-exp)에서만 사용할 수 있습니다. ⚙ 설정에서 모델을 변경하세요.');
+      return;
+    }
+    if (this.pendingImages.length > 0) {
+      this.pendingImages = [];
+      this.cameraBtn.classList.remove('aic-camera-active');
+      this.addSystemMessage('화면 캡처 첨부가 취소되었습니다.');
+      return;
+    }
+    const shots = captureVisiblePages();
+    if (shots.length === 0) {
+      this.addSystemMessage('캡처할 페이지가 없습니다. 문서를 열어주세요.');
+      return;
+    }
+    this.pendingImages = shots;
+    this.cameraBtn.classList.add('aic-camera-active');
+    this.addSystemMessage(`화면 ${shots.length}장이 다음 요청에 첨부됩니다. (전송 후 자동 해제)`);
+  }
+
   private async checkServer(): Promise<void> {
     if (!this.service.isConfigured) {
-      this.statusEl.textContent = '⚙ 설정 필요';
-      this.statusEl.style.color = '#ff9800';
-      this.addSystemMessage('AI Assistant를 사용하려면 ⚙ 버튼을 눌러 opencode Go 또는 Zen API 키를 입력하세요.\nAPI 키는 opencode.ai/auth에서 발급받을 수 있습니다.');
+      this.setStatus('설정 필요', '#ff9800');
+      this.addSystemMessage('AI Assistant를 사용하려면 설정 버튼을 눌러 opencode Go 또는 Zen API 키를 입력하세요.\nAPI 키는 opencode.ai/auth에서 발급받을 수 있습니다.');
     } else {
       const ready = await this.service.isServerReady();
       if (ready) {
-        this.statusEl.textContent = '🟢 API 연결됨';
-        this.statusEl.style.color = '#4caf50';
+        this.setStatus('API 연결됨', '#4caf50');
       } else {
-        this.statusEl.textContent = '🔴 API 연결 실패';
-        this.statusEl.style.color = '#f44336';
+        this.setStatus('API 연결 실패', '#f44336');
         this.addSystemMessage('API 연결에 실패했습니다. API 키가 유효한지 확인하세요.');
       }
     }
@@ -136,14 +179,18 @@ export class AiChatPanel {
   private async tryRestoreSettings(): Promise<void> {
     const stored = await this.service.loadStoredSettings();
     if (stored) {
-      this.statusEl.textContent = '🟢 설정 불러옴';
-      this.statusEl.style.color = '#4caf50';
+      this.setStatus('설정 불러옴', '#4caf50');
       this.updateSendButton();
     }
   }
 
   private updateSendButton(): void {
     this.sendBtn.disabled = this.loading || !this.service.isConfigured;
+    const settings = this.service.getSettings();
+    this.cameraBtn.disabled = !settings || !isVisionModel(settings.modelId);
+    this.cameraBtn.title = settings && !isVisionModel(settings.modelId)
+      ? '화면 캡처는 비전 모델에서만 사용 가능'
+      : '화면 캡처 첨부 (다음 요청 1회)';
     if (!this.service.isConfigured) {
       this.sendBtn.title = '먼저 AI 설정(⚙)을 완료하세요';
     } else {
@@ -156,16 +203,13 @@ export class AiChatPanel {
     const settings = await this.settingsDialog.show(current ?? undefined);
     if (settings) {
       try {
-        this.statusEl.textContent = '⏳ 설정 중...';
-        this.statusEl.style.color = '';
+        this.setStatus('설정 중...');
         await this.service.configure(settings);
-        this.statusEl.textContent = '🟢 설정 완료';
-        this.statusEl.style.color = '#4caf50';
+        this.setStatus('설정 완료', '#4caf50');
         this.addSystemMessage(`설정 완료: ${settings.provider === 'go' ? 'open code Go' : 'open code Zen'} / ${settings.modelId}`);
         this.updateSendButton();
       } catch (err) {
-        this.statusEl.textContent = '🔴 설정 실패';
-        this.statusEl.style.color = '#f44336';
+        this.setStatus('설정 실패', '#f44336');
         this.addSystemMessage(`설정 실패: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
@@ -176,18 +220,63 @@ export class AiChatPanel {
     if (!text || this.loading) return;
 
     this.inputEl.value = '';
+    const images = this.pendingImages;
+    this.pendingImages = [];
+    this.cameraBtn.classList.remove('aic-camera-active');
     this.loading = true;
     this.sendBtn.disabled = true;
-    this.sendBtn.textContent = '⏳ 대기 중...';
+    this.sendBtn.textContent = '대기 중...';
 
     this.addMessage({ role: 'user', content: text, timestamp: Date.now() });
-    const loadingEl = this.addLoadingIndicator();
+    this.addLoadingIndicator();
 
     try {
-      const responses = await this.service.sendMessage(text);
+      const liveEls = new Map<ChatMessage, HTMLElement>();
+      const rendered = new Set<ChatMessage>();
+      let pendingMsg: ChatMessage | null = null;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const flush = (): void => {
+        timer = null;
+        const msg = pendingMsg;
+        pendingMsg = null;
+        if (!msg) return;
+        const el = liveEls.get(msg);
+        if (!el) return;
+        const thinking = msg.content.startsWith(THINKING_PREFIX);
+        const content = thinking
+          ? el.querySelector('.aic-thinking-body')
+          : el.querySelector('.aic-msg-content');
+        if (content) {
+          content.textContent = thinking ? msg.content.replace(THINKING_PREFIX, '') : msg.content;
+        }
+        this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+      };
+      const onUpdate = (msg: ChatMessage): void => {
+        if (rendered.has(msg) || msg.role !== 'assistant' || !msg.content) return;
+        if (!liveEls.has(msg)) {
+          rendered.add(msg);
+          liveEls.set(msg, this.addMessage(msg));
+          this.removeLoadingIndicator();
+        }
+        pendingMsg = msg;
+        if (!timer) timer = setTimeout(flush, 40);
+      };
+
+      const responses = await this.service.sendMessage(text, images, onUpdate);
+      if (timer) {
+        clearTimeout(timer);
+        flush();
+      }
       for (const msg of responses) {
+        if (rendered.has(msg)) continue;
         if (msg.role === 'assistant' && msg.content) {
           this.addMessage(msg);
+        }
+      }
+      for (const [msg, el] of liveEls) {
+        if (!msg.content.startsWith(THINKING_PREFIX)) {
+          const content = el.querySelector('.aic-msg-content') as HTMLElement | null;
+          if (content) content.innerHTML = this.formatMarkdown(msg.content);
         }
       }
     } catch (err) {
@@ -226,7 +315,7 @@ export class AiChatPanel {
     }
   }
 
-  private addMessage(msg: ChatMessage): void {
+  private addMessage(msg: ChatMessage): HTMLElement {
     const el = document.createElement('div');
 
     if (msg.role === 'user') {
@@ -242,12 +331,12 @@ export class AiChatPanel {
       content.className = 'aic-msg-content';
       content.textContent = msg.content;
       el.appendChild(content);
-    } else if (msg.content.startsWith('💭')) {
+    } else if (msg.content.startsWith(THINKING_PREFIX)) {
       // AI thinking - collapsible
       el.className = 'aic-message aic-msg-thinking';
       const header = document.createElement('div');
       header.className = 'aic-thinking-header';
-      header.textContent = '🧠 생각 과정';
+      header.textContent = '생각 과정';
       header.addEventListener('click', () => {
         const body = el.querySelector('.aic-thinking-body') as HTMLElement;
         if (body) body.style.display = body.style.display === 'none' ? '' : 'none';
@@ -256,7 +345,7 @@ export class AiChatPanel {
       const body = document.createElement('div');
       body.className = 'aic-thinking-body';
       body.style.display = '';
-      body.textContent = msg.content.replace('💭 ', '');
+      body.textContent = msg.content.replace(THINKING_PREFIX, '');
       el.appendChild(body);
     } else {
       // Final AI response
@@ -269,6 +358,7 @@ export class AiChatPanel {
 
     this.messagesEl.appendChild(el);
     this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
+    return el;
   }
 
   private formatMarkdown(text: string): string {

@@ -341,3 +341,21 @@
   padding: 2px 8px;
   font-size: 11px;
 }
+
+.aic-btn-camera {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  color: var(--color-text-muted);
+}
+
+.aic-btn-camera.aic-camera-active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+.aic-btn-camera:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

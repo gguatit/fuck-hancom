@@ -59,3 +59,10 @@ Desktop.ini
 
 # NSIS installer scripts
 *.nsi
+
+# Local build artifacts
+dist-release/
+build-debug.log
+.fva/
+rustup-init.exe
+

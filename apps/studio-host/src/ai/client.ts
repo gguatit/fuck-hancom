@@ -1,5 +1,10 @@
 import type { AiSettings } from './types';
 
+export interface StreamChunk {
+  type: 'content' | 'reasoning';
+  text: string;
+}
+
 const ZEN_BASE = 'https://opencode.ai/zen/v1';
 const GO_BASE = 'https://opencode.ai/zen/go/v1';
 const STORE_KEY = 'ai_settings';
@@ -60,12 +65,25 @@ export class AiClient {
     }
   }
 
-  async chat(body: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.invoke('ai_proxy_request', {
-      baseUrl: this.baseUrl,
-      apiKey: this.apiKey,
-      body,
-    });
+  async chat(body: Record<string, unknown>, onChunk?: (chunk: StreamChunk) => void): Promise<Record<string, unknown>> {
+    let unlisten: (() => void) | undefined;
+    if (onChunk) {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen<StreamChunk>('ai-chunk', (e) => onChunk(e.payload));
+      } catch {
+        // browser mode: no Tauri events
+      }
+    }
+    try {
+      return await this.invoke('ai_proxy_request', {
+        baseUrl: this.baseUrl,
+        apiKey: this.apiKey,
+        body,
+      });
+    } finally {
+      unlisten?.();
+    }
   }
 
   async fetchModels(): Promise<Array<{ id: string; name: string }>> {

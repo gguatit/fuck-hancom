@@ -5,7 +5,7 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
   return [
     {
       name: 'read_document_text',
-      description: '문서 텍스트 읽기. section/paragraph 생략 시 전체. maxChars 제한 가능.',
+      description: '문서 텍스트 읽기. section/paragraph 생략 시 전체. maxChars 제한 가능. 표 셀 텍스트는 포함되지 않으므로 표 안의 내용은 get_table_content를 사용해.',
       parameters: {
         type: 'object',
         properties: {
@@ -98,7 +98,7 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
     },
     {
       name: 'insert_text',
-      description: '지정 위치에 텍스트 삽입.',
+      description: '지정 위치에 텍스트 삽입. charOffset은 search_text나 read_document_text로 확인한 정확한 글자 위치만 사용하고 절대 추측하지 마세요.',
       parameters: {
         type: 'object',
         properties: {
@@ -161,7 +161,7 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
     },
     {
       name: 'insert_text_in_cell',
-      description: '표 셀 안에 텍스트를 삽입합니다. cellIdx = row * cols + col.',
+      description: '표 셀 안에 텍스트를 삽입합니다. cellIdx = row * cols + col. 셀에 내용이 이미 있으면 먼저 delete_text_in_cell로 지운 뒤 삽입하세요.',
       parameters: {
         type: 'object',
         properties: {
@@ -236,7 +236,7 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
           italic: { type: 'boolean', description: '기울임' },
           underline: { type: 'boolean', description: '밑줄' },
           strikethrough: { type: 'boolean', description: '취소선' },
-          baseSize: { type: 'number', description: '글자 크기 (pt*100. 12pt=1200)' },
+          baseSize: { type: 'number', description: '글자 크기 (pt×100 단위. 12pt=1200). 주변 텍스트와 동일한 크기를 사용하세요.' },
           fontId: { type: 'number', description: '글꼴 ID. findOrCreateFontId로 얻음' },
           textColor: { type: 'integer', description: '글자색 ARGB (검정=4278190080)' },
           shadeColor: { type: 'integer', description: '음영색 ARGB (노랑=4294967040)' },
@@ -315,7 +315,93 @@ export function createHwpTools(wasm: WasmBridge): HwpToolDef[] {
         required: ['section', 'paragraph', 'charOffset', 'rows', 'cols'],
       },
     },
+    {
+      name: 'list_shapes',
+      description: '페이지의 모든 개체(그림/글상자/표/수식/도형) 위치와 참조(sec/para/ci) 조회. 글상자는 내용 텍스트 포함.',
+      parameters: {
+        type: 'object',
+        properties: {
+          page: { type: 'integer', description: '페이지 번호 (0부터). 생략 시 전체 페이지.' },
+        },
+      },
+    },
+    {
+      name: 'insert_textbox',
+      description: '스캔 이미지 등 텍스트가 없는 문서에 글상자를 만들어 텍스트 삽입. 위치/크기는 콘텐츠 영역(여백 제외) 기준 %로 지정. 글상자 좌표는 추측하지 말고 화면 이미지에서 빈칸 위치를 보고 정확히 계산.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer', description: '섹션 인덱스 (보통 0)' },
+          paragraph: { type: 'integer', description: '앵커 문단 (보통 0)' },
+          charOffset: { type: 'integer', description: '앵커 위치 (보통 0)' },
+          xPercent: { type: 'number', description: '글상자 왼쪽 위치 (콘텐츠 폭의 %)' },
+          yPercent: { type: 'number', description: '글상자 위쪽 위치 (콘텐츠 높이의 %)' },
+          widthPercent: { type: 'number', description: '글상자 폭 (콘텐츠 폭의 %, 기본 30)' },
+          heightPercent: { type: 'number', description: '글상자 높이 (콘텐츠 높이의 %, 기본 10)' },
+          text: { type: 'string', description: '글상자에 넣을 텍스트' },
+        },
+        required: ['section', 'text'],
+      },
+    },
+    {
+      name: 'modify_shape',
+      description: '개체 위치/크기 수정. %는 콘텐츠 영역 기준. 생략한 값은 현재 유지. 목표 %는 화면 이미지에서 현재 위치를 보고 이동할 양을 계산.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          controlIdx: { type: 'integer' },
+          xPercent: { type: 'number', description: '개체 왼쪽 위치 (콘텐츠 폭의 %)' },
+          yPercent: { type: 'number', description: '개체 위쪽 위치 (콘텐츠 높이의 %)' },
+          widthPercent: { type: 'number', description: '폭 (콘텐츠 폭의 %)' },
+          heightPercent: { type: 'number', description: '높이 (콘텐츠 높이의 %)' },
+        },
+        required: ['section', 'paragraph', 'controlIdx'],
+      },
+    },
+    {
+      name: 'delete_shape',
+      description: '개체(도형/글상자) 삭제.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          controlIdx: { type: 'integer' },
+        },
+        required: ['section', 'paragraph', 'controlIdx'],
+      },
+    },
+    {
+      name: 'replace_textbox_text',
+      description: '글상자 내용을 전부 지우고 새 텍스트로 교체.',
+      parameters: {
+        type: 'object',
+        properties: {
+          section: { type: 'integer' },
+          paragraph: { type: 'integer' },
+          controlIdx: { type: 'integer' },
+          text: { type: 'string', description: '새 텍스트' },
+        },
+        required: ['section', 'paragraph', 'controlIdx', 'text'],
+      },
+    },
   ];
+}
+
+/** 글상자/도형 % 좌표 → HWPUNIT 변환 (콘텐츠 영역 = 여백 제외) */
+export function computeTextboxGeometry(
+  pageDef: { width: number; height: number; marginLeft: number; marginRight: number; marginTop: number; marginBottom: number },
+  opts: { xPercent?: number; yPercent?: number; widthPercent?: number; heightPercent?: number },
+): { width: number; height: number; horzOffset: number; vertOffset: number } {
+  const contentW = Math.max(1, pageDef.width - pageDef.marginLeft - pageDef.marginRight);
+  const contentH = Math.max(1, pageDef.height - pageDef.marginTop - pageDef.marginBottom);
+  const width = Math.max(1, Math.min(contentW, Math.round(contentW * ((opts.widthPercent ?? 30) / 100))));
+  const height = Math.max(1, Math.min(contentH, Math.round(contentH * ((opts.heightPercent ?? 10) / 100))));
+  const horzOffset = Math.max(0, Math.min(contentW - width, Math.round(contentW * ((opts.xPercent ?? 0) / 100))));
+  const vertOffset = Math.max(0, Math.min(contentH - height, Math.round(contentH * ((opts.yPercent ?? 0) / 100))));
+  return { width, height, horzOffset, vertOffset };
 }
 
 export function executeHwpTool(
@@ -376,10 +462,27 @@ export function executeHwpTool(
 
       let totalPics = 0, totalFns = 0, hfCount = 0;
       const allBookmarks: string[] = [];
+      const tableInfos: string[] = [];
       try {
         const bms = wasm.getBookmarks();
         for (const b of bms) {
           allBookmarks.push(`${b.name} (s${b.sec}p${b.para})`);
+        }
+      } catch { /* */ }
+
+      try {
+        for (let s = 0; s < sections; s++) {
+          let pc = 0;
+          try { pc = wasm.getParagraphCount(s); } catch { break; }
+          for (let p = 0; p < pc; p++) {
+            for (let ci = 0; ci < 5; ci++) {
+              try {
+                const dims = wasm.getTableDimensions(s, p, ci);
+                if (!dims?.rowCount) continue;
+                tableInfos.push(`표${tableInfos.length + 1}: ${dims.rowCount}행x${dims.colCount}열 (section=${s}, paragraph=${p}, controlIdx=${ci})`);
+              } catch { /* */ }
+            }
+          }
         }
       } catch { /* */ }
 
@@ -417,6 +520,7 @@ export function executeHwpTool(
       } catch { /* */ }
 
       out.unshift(`전체 구조: ${sections}섹션, ${wasm.pageCount}페이지`);
+      if (tableInfos.length > 0) out.push(`표: ${tableInfos.join('; ')}`);
       if (totalPics > 0) out.push(`그림/개체: ${totalPics}개`);
       if (totalFns > 0) out.push(`각주: ${totalFns}개`);
       if (hfCount > 0) out.push(`머리말/꼬리말: ${hfCount}개`);
@@ -672,10 +776,10 @@ export function executeHwpTool(
         if (existing.trim() && off === 0 && !text.startsWith(existing.trim())) {
           // Cell has content - warn but still allow
           wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
-          return `⚠️ cellIdx=${cellIdx} 기존내용 "${existing.trim().substring(0, 30)}" 위에 덮어쓰기. 의도적이면 문제없음.`;
+          return `[주의] cellIdx=${cellIdx} 기존내용 "${existing.trim().substring(0, 30)}" 위에 덮어쓰기. 의도적이면 문제없음.`;
         }
         wasm.insertTextInCell(s, p, ci, cellIdx, cp, off, text);
-        return `✅ 셀 삽입 완료: cellIdx=${cellIdx} +${text.length}글자`;
+        return `[완료] 셀 삽입 완료: cellIdx=${cellIdx} +${text.length}글자`;
       } catch (e) { return `셀 삽입 실패: ${e}`; }
     }
 
@@ -861,6 +965,106 @@ export function executeHwpTool(
           ? `표 생성 완료: ${rows}행×${cols}열 (section=${s}, paraIdx=${r.paraIdx ?? p}, controlIdx=${r.controlIdx ?? 0})`
           : '표 생성 실패';
       } catch (e) { return `표 생성 실패: ${e}`; }
+    }
+
+    case 'list_shapes': {
+      try {
+        const page = args.page as number | undefined;
+        const pages = page !== undefined ? [page] : Array.from({ length: wasm.pageCount }, (_, i) => i);
+        const lines: string[] = [];
+        for (const pg of pages) {
+          const { controls } = wasm.getPageControlLayout(pg);
+          if (!controls?.length) { lines.push(`페이지 ${pg + 1}: 개체 없음`); continue; }
+          const rows = controls.map((c) => {
+            const ref = `sec=${c.secIdx ?? 0} para=${c.paraIdx ?? 0} ci=${c.controlIdx ?? 0}`;
+            let type: string = c.type;
+            let extra = '';
+            if (c.type === 'shape' && c.secIdx !== undefined && c.paraIdx !== undefined && c.controlIdx !== undefined) {
+              try {
+                const props = wasm.getShapeProperties(c.secIdx, c.paraIdx, c.controlIdx);
+                if (props.tbMarginLeft !== undefined) type = '글상자';
+              } catch { /* */ }
+              try {
+                const len = wasm.getCellParagraphLength(c.secIdx, c.paraIdx, c.controlIdx, 0, 0);
+                if (len > 0) {
+                  const t = wasm.getTextInCell(c.secIdx, c.paraIdx, c.controlIdx, 0, 0, 0, Math.min(len, 60));
+                  if (t) extra = ` 텍스트="${t}"`;
+                }
+              } catch { /* */ }
+            }
+            return `[${type}] x=${c.x.toFixed(1)} y=${c.y.toFixed(1)} w=${c.w.toFixed(1)} h=${c.h.toFixed(1)}px (${ref})${extra}`;
+          });
+          lines.push(`페이지 ${pg + 1}:\n  ${rows.join('\n  ')}`);
+        }
+        return lines.join('\n');
+      } catch (e) { return `개체 목록 읽기 실패: ${e}`; }
+    }
+
+    case 'insert_textbox': {
+      try {
+        const s = args.section as number;
+        const p = (args.paragraph as number) ?? 0;
+        const off = (args.charOffset as number) ?? 0;
+        const text = args.text as string;
+        if (!text) return '삽입 실패: text가 비어 있습니다.';
+        const g = computeTextboxGeometry(wasm.getPageDef(s), {
+          xPercent: args.xPercent as number,
+          yPercent: args.yPercent as number,
+          widthPercent: args.widthPercent as number,
+          heightPercent: args.heightPercent as number,
+        });
+        const r = wasm.createShapeControl({
+          sectionIdx: s, paraIdx: p, charOffset: off,
+          width: g.width, height: g.height,
+          horzOffset: g.horzOffset, vertOffset: g.vertOffset,
+          shapeType: 'textbox', treatAsChar: false, textWrap: 'Square',
+        });
+        if (!r.ok) return '글상자 생성 실패';
+        wasm.insertTextInCell(s, r.paraIdx, r.controlIdx, 0, 0, 0, text);
+        return `글상자 삽입 완료: ${text.length}글자 (para=${r.paraIdx}, ci=${r.controlIdx}, ${g.width}x${g.height}HWPUNIT @${g.horzOffset},${g.vertOffset})`;
+      } catch (e) { return `글상자 삽입 실패: ${e}`; }
+    }
+
+    case 'modify_shape': {
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const ci = args.controlIdx as number;
+        const pageDef = wasm.getPageDef(s);
+        const contentW = Math.max(1, pageDef.width - pageDef.marginLeft - pageDef.marginRight);
+        const contentH = Math.max(1, pageDef.height - pageDef.marginTop - pageDef.marginBottom);
+        const props: Record<string, unknown> = {};
+        if (args.widthPercent !== undefined) props.width = Math.max(1, Math.round(contentW * ((args.widthPercent as number) / 100)));
+        if (args.heightPercent !== undefined) props.height = Math.max(1, Math.round(contentH * ((args.heightPercent as number) / 100)));
+        if (args.xPercent !== undefined) props.horzOffset = Math.round(contentW * ((args.xPercent as number) / 100));
+        if (args.yPercent !== undefined) props.vertOffset = Math.round(contentH * ((args.yPercent as number) / 100));
+        const r = wasm.setShapeProperties(s, p, ci, props);
+        return r.ok ? `도형 수정 완료: s${s}p${p}ci${ci} ${Object.keys(props).join(', ')}` : '도형 수정 실패';
+      } catch (e) { return `도형 수정 실패: ${e}`; }
+    }
+
+    case 'delete_shape': {
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const ci = args.controlIdx as number;
+        const r = wasm.deleteShapeControl(s, p, ci);
+        return r.ok ? `도형 삭제 완료: s${s}p${p}ci${ci}` : '도형 삭제 실패';
+      } catch (e) { return `도형 삭제 실패: ${e}`; }
+    }
+
+    case 'replace_textbox_text': {
+      try {
+        const s = args.section as number;
+        const p = args.paragraph as number;
+        const ci = args.controlIdx as number;
+        const text = args.text as string;
+        if (text === undefined) return '교체 실패: text 필요';
+        const len = wasm.getCellParagraphLength(s, p, ci, 0, 0);
+        if (len > 0) wasm.deleteTextInCell(s, p, ci, 0, 0, 0, len);
+        wasm.insertTextInCell(s, p, ci, 0, 0, 0, text);
+        return `글상자 내용 교체 완료: ${text.length}글자 (s${s}p${p}ci${ci})`;
+      } catch (e) { return `글상자 내용 교체 실패: ${e}`; }
     }
 
     default:

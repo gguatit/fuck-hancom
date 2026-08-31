@@ -29,13 +29,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": {
-      "./target/debug/WebView2Loader.dll": "WebView2Loader.dll"
-    },
     "publisher": "golbin.net",
     "shortDescription": "Open desktop editor for HWP and HWPX documents",
     "longDescription": "Fuck Hancom opens, edits, saves, and exports HWP/HWPX documents.",
-    "shortDescription": "Open HWP documents",
     "copyright": "Fuck Hancom",
     "icon": [
       "../../../assets/logo/logo-32.png",
