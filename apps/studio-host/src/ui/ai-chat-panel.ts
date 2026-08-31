@@ -29,6 +29,7 @@ export class AiChatPanel {
   private statusEl!: HTMLElement;
   private pendingImages: string[] = [];
   private loading = false;
+  private sessionMsgShown = false;
   private wasm: WasmBridge;
   private eventBus: EventBus;
 
@@ -141,7 +142,7 @@ export class AiChatPanel {
   private toggleCapture(): void {
     const settings = this.service.getSettings();
     if (!settings || !isVisionModel(settings.modelId)) {
-      this.addSystemMessage('화면 캡처는 비전 모델(예: deepseek-v4-flash-vision-exp)에서만 사용할 수 있습니다. ⚙ 설정에서 모델을 변경하세요.');
+      this.addSystemMessage('화면 캡처는 비전 모델(예: deepseek-v4-flash-vision-exp)에서만 사용할 수 있습니다. 설정에서 모델을 변경하세요.');
       return;
     }
     if (this.pendingImages.length > 0) {
@@ -163,14 +164,20 @@ export class AiChatPanel {
   private async checkServer(): Promise<void> {
     if (!this.service.isConfigured) {
       this.setStatus('설정 필요', '#ff9800');
-      this.addSystemMessage('AI Assistant를 사용하려면 설정 버튼을 눌러 opencode Go 또는 Zen API 키를 입력하세요.\nAPI 키는 opencode.ai/auth에서 발급받을 수 있습니다.');
+      if (!this.sessionMsgShown) {
+        this.sessionMsgShown = true;
+        this.addSystemMessage('AI Assistant를 사용하려면 설정 버튼을 눌러 opencode Go 또는 Zen API 키를 입력하세요.\nAPI 키는 opencode.ai/auth에서 발급받을 수 있습니다.');
+      }
     } else {
       const ready = await this.service.isServerReady();
       if (ready) {
         this.setStatus('API 연결됨', '#4caf50');
       } else {
         this.setStatus('API 연결 실패', '#f44336');
-        this.addSystemMessage('API 연결에 실패했습니다. API 키가 유효한지 확인하세요.');
+        if (!this.sessionMsgShown) {
+          this.sessionMsgShown = true;
+          this.addSystemMessage('API 연결에 실패했습니다. API 키가 유효한지 확인하세요.');
+        }
       }
     }
     this.updateSendButton();
@@ -192,7 +199,7 @@ export class AiChatPanel {
       ? '화면 캡처는 비전 모델에서만 사용 가능'
       : '화면 캡처 첨부 (다음 요청 1회)';
     if (!this.service.isConfigured) {
-      this.sendBtn.title = '먼저 AI 설정(⚙)을 완료하세요';
+      this.sendBtn.title = '먼저 AI 설정을 완료하세요';
     } else {
       this.sendBtn.title = '';
     }
@@ -269,7 +276,7 @@ export class AiChatPanel {
       }
       for (const msg of responses) {
         if (rendered.has(msg)) continue;
-        if (msg.role === 'assistant' && msg.content) {
+        if ((msg.role === 'assistant' || msg.role === 'tool') && msg.content) {
           this.addMessage(msg);
         }
       }

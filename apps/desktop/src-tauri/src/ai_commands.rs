@@ -3,6 +3,13 @@ use std::io::Read;
 use std::{thread, time::Duration};
 use tauri::{AppHandle, Emitter};
 
+fn http_agent() -> ureq::Agent {
+    let config = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(600)))
+        .build();
+    ureq::Agent::new_with_config(config)
+}
+
 fn parse_error_json(body: &str) -> String {
     match serde_json::from_str::<Value>(body) {
         Ok(v) => v
@@ -84,7 +91,7 @@ fn do_request(app: &AppHandle, url: &str, api_key: &str, body: &Value) -> Result
         obj.insert("stream".into(), Value::Bool(true));
     }
 
-    let req = ureq::post(url)
+    let req = http_agent().post(url)
         .header("Authorization", &format!("Bearer {}", api_key))
         .header("Content-Type", "application/json");
 
@@ -170,7 +177,7 @@ pub async fn ai_proxy_models(
     let url = format!("{}/models", base_url.trim_end_matches('/'));
 
     tauri::async_runtime::spawn_blocking(move || {
-        let res = ureq::get(&url)
+        let res = http_agent().get(&url)
             .header("Authorization", &format!("Bearer {}", api_key))
             .call()
             .map_err(|e| format!("모델 목록 요청 실패: {}", e))?;

@@ -4,7 +4,7 @@ import { AiClient } from './client';
 import { executeHwpTool } from './tools';
 import type { AiSettings, ChatMessage, ToolCall } from './types';
 
-const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph', 'insert_text_in_cell', 'delete_text_in_cell', 'set_char_format', 'set_para_format', 'apply_style', 'set_page_margins', 'create_table']);
+const MODIFYING_TOOLS = new Set(['insert_text', 'delete_text', 'replace_all', 'split_paragraph', 'merge_paragraph', 'insert_text_in_cell', 'delete_text_in_cell', 'set_char_format', 'set_para_format', 'apply_style', 'set_page_margins', 'create_table', 'insert_textbox', 'replace_textbox_text', 'modify_shape', 'delete_shape']);
 
 export const THINKING_PREFIX = '[생각] ';
 
@@ -69,7 +69,7 @@ function parseToolBlocks(text: string): { calls: ToolCall[]; cleanText: string }
   let clean = text;
 
   // Pattern 1: ```tool ... ```
-  const mdRegex = /```tool\s*\n\s*(\{[\s\S]*?\})\s*\n\s*```/g;
+  const mdRegex = /```tool\s*(\{[\s\S]*?\})\s*```/g;
   let match;
   while ((match = mdRegex.exec(text)) !== null) {
     clean = clean.replace(match[0], '');
@@ -170,7 +170,8 @@ export class AiService {
     this.conversationHistory.push({ role: 'user', content: userMessage });
 
     const MAX_ROUNDS = 8;
-    for (let round = 0; round < MAX_ROUNDS; round++) {
+    let round = 0;
+    for (round = 0; round < MAX_ROUNDS; round++) {
       // Yield to event loop before each API call
       await new Promise((r) => setTimeout(r, 0));
 
@@ -209,7 +210,9 @@ export class AiService {
         throw new Error(`AI 응답을 해석할 수 없습니다. 응답: ${JSON.stringify(response).slice(0, 200)}`);
       }
       const msg = choice.message as Record<string, unknown> | undefined;
-      if (!msg) break;
+      if (!msg) {
+        throw new Error(`AI 응답에 메시지가 없습니다. 응답: ${JSON.stringify(response).slice(0, 200)}`);
+      }
 
       const responseText = (msg.content as string) || '';
       const toolCalls = msg.tool_calls as Array<Record<string, unknown>> | undefined;
@@ -281,6 +284,11 @@ export class AiService {
         this.conversationHistory.push({ role: 'assistant', content: clean });
       }
       break;
+    }
+    if (round >= MAX_ROUNDS) {
+      const note: ChatMessage = { role: 'assistant', content: '도구 호출이 너무 많아 중단했습니다. 다시 시도하거나 더 구체적으로 요청해 주세요.', timestamp: Date.now() };
+      messages.push(note);
+      onUpdate?.(note);
     }
     return messages;
   }
